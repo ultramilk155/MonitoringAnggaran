@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6 mb-3 mb-md-0">
+        <div class="card shadow-sm border-left-primary h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Pagu Anggaran</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ total_pagu_total|ribuan }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-left-success h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Realisasi (Ellipse)</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ total_all_ellipse|ribuan }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header py-3">
+                <h5 class="mb-0 fw-bold text-primary">Visualisasi Anggaran vs Realisasi - Tahun {{ selected_year }}</h5>
+            </div>
+            <div class="card-body" style="position: relative; height: 300px;">
+                <canvas id="budgetChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-primary">Daftar Anggaran Operasi (AO) {{ selected_year }}</h5>
+        <div class="d-flex align-items-center">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('export_excel') }}" class="btn btn-outline-success me-2">
+                <i class="bi bi-download"></i> Export Data
+            </a>
+            {% endif %}
+
+            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+            <button class="btn btn-success me-3" data-bs-toggle="modal" data-bs-target="#uploadPrkModal">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Import Excel
+            </button>
+            {% endif %}
+
+            <form action="/" method="GET" class="d-flex">
+                <select name="kode" class="form-select me-2" onchange="this.form.submit()">
+                    <option value="">Semua Kode</option>
+                    {% for code in unique_codes %}
+                    <option value="{{ code }}" {% if kode_filter==code %}selected{% endif %}>{{ code }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <form id="bulkDeleteForm" action="{{ url_for('delete_bulk_budget_lines') }}" method="POST"
+            onsubmit="return confirm('Yakin ingin menghapus item yang dipilih? Semua rincian di dalamnya akan hilang.');">
+            <div class="p-2 d-none bg-light border-bottom" id="bulkActions">
+                <button type="submit" class="btn btn-sm btn-danger ms-2">
+                    <i class="bi bi-trash"></i> Hapus yang Dipilih (<span id="selectedCount">0</span>)
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle table-sm" style="font-size: 0.9em;">
+                    <thead>
+                        <tr>
+                            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                            <th rowspan="2" class="text-center align-middle" style="width: 40px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input"
+                                    onclick="toggleSelectAll(this)" title="Pilih semua untuk dihapus">
+                                <div style="font-size: 0.6rem; margin-top: 2px;" class="text-danger">Hapus</div>
+                            </th>
+                            {% endif %}
+                            <th rowspan="2" class="text-center align-middle">No.</th>
+                            <th rowspan="2" class="text-center align-middle">Kode</th>
+                            <th rowspan="2" class="align-middle">No PRK</th>
+                            <th rowspan="2" class="align-middle">Deskripsi</th>
+                            <th colspan="3" class="text-center">Pagu</th>
+                            <th colspan="4" class="text-center">Realisasi</th>
+                            <th rowspan="2" class="text-center align-middle">Aksi</th>
+                        </tr>
+                        <tr>
+                            <th class="text-end">Material</th>
+                            <th class="text-end">Jasa</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Usulan RAB</th>
+                            <th class="text-end">Terkontrak</th>
+                            <th class="text-end">Terbayar</th>
+                            <th class="text-end">Ellipse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                            <td class="text-center">
+                                <input type="checkbox" name="ids" value="{{ item.id }}"
+                                    class="form-check-input item-checkbox" onclick="updateBulkState()">
+                            </td>
+                            {% endif %}
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-info text-dark">{{ item.kode }}</span>
+                            </td>
+                            <td class="text-nowrap fw-bold">{{ item.no_prk }}</td>
+                            <td class="text-truncate" style="max-width: 250px;" title="{{ item.deskripsi }}">{{
+                                item.deskripsi }}</td>
+
+                            <!-- Pagu -->
+                            <td class="text-end">Rp {{ item.pagu_material|ribuan }}</td>
+                            <td class="text-end">Rp {{ item.pagu_jasa|ribuan }}</td>
+                            <td class="text-end fw-bold">Rp {{ item.pagu_total|ribuan }}</td>
+
+                            <!-- Realisasi -->
+                            <td class="text-end text-muted">Rp {{ item.usulan_rab_rp|ribuan }}</td>
+                            <td class="text-end text-muted">Rp {{ item.terkontrak_rp|ribuan }}</td>
+                            <td class="text-end text-muted">Rp {{ item.terbayar_rp|ribuan }}</td>
+                            <td class="text-end text-muted">Rp {{ item.ellipse_rp|ribuan }}</td>
+
+                            <td class="text-center">
+                                <a href="{{ url_for('detail', kode=item.kode) }}"
+                                    class="btn btn-sm btn-primary">Detail</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="12" class="text-center py-4 text-muted">Belum ada data anggaran.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="fw-bold" style="border-top: 2px solid var(--border-color);">
+                        <tr>
+                            <td colspan="{% if current_user.role == 'super_admin' %}5{% else %}4{% endif %}"
+                                class="text-end">Grand Total</td>
+                            <td class="text-end">Rp {{ total_pagu_material|ribuan }}</td>
+                            <td class="text-end">Rp {{ total_pagu_jasa|ribuan }}</td>
+                            <td class="text-end">Rp {{ total_pagu_total|ribuan }}</td>
+                            <td colspan="5"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const chartLabels = {{ chart_labels | tojson }};
+    const chartPagu = {{ chart_pagu | tojson }};
+    const chartEllipse = {{ chart_ellipse | tojson }};
+    const chartSisa = {{ chart_sisa | tojson }};
+    const chartPercent = {{ chart_percent | tojson }};
+
+    const ctx = document.getElementById('budgetChart').getContext('2d');
+    
+    // Horizontal Stacked Bar Chart
+    const budgetChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'Realisasi (Ellipse)',
+                    data: chartEllipse,
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)', // Green
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1,
+                    order: 1
+                },
+                {
+                    label: 'Sisa Anggaran',
+                    data: chartSisa,
+                    backgroundColor: 'rgba(108, 117, 125, 0.3)', // Grey/Muted
+                    borderColor: 'rgba(108, 117, 125, 0.5)',
+                    borderWidth: 1,
+                    order: 2
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal Orientation
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'y', // Interaction mode specific to horizontal index
+                intersect: false,
+            },
+            scales: {
+                x: { // Value Axis (Currency)
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: {
+                        color: '#94A3B8',
+                        callback: function(value) {
+                            return 'Rp ' + (value / 1000).toLocaleString('id-ID');
+                        }
+                    }
+                },
+                y: { // Category Axis (Labels)
+                    stacked: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#94A3B8' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed.x !== null) {
+                                return label + 'Rp ' + (context.parsed.x / 1000).toLocaleString('id-ID');
+                            }
+                            return label;
+                        },
+                        footer: function(tooltipItems) {
+                             let total = 0;
+                             tooltipItems.forEach(function(tooltipItem) {
+                                 total += tooltipItem.parsed.x;
+                             });
+                             return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID');
+                        }
+                    }
+                },
+                legend: {
+                    labels: { color: '#94A3B8' }
+                }
+            }
+        }
+    });
+</script>
+<!-- Modal Upload -->
+<div class="modal fade" id="uploadPrkModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Data PRK (Excel)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('upload_prk') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <small>Unduh template sebelum upload:</small> <br>
+                        <a href="{{ url_for('download_template') }}" class="fw-bold text-decoration-none"><i
+                                class="bi bi-download"></i> Download Template (Excel)</a>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tahun Anggaran</label>
+                        <input type="number" name="tahun" class="form-control" value="{{ selected_year }}" required>
+                        <small class="text-muted">Pastikan tahun sesuai dengan data di Excel.</small>
+                    </div>
+
+                    <p class="small text-muted mb-1">Format Excel Columns: Kode, No PRK, Deskripsi, Pagu Material, Pagu
+                        Jasa</p>
+                    <input type="file" name="file" class="form-control" required accept=".xlsx, .xls">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    function toggleSelectAll(source) {
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = source.checked;
+        });
+        updateBulkState();
+    }
+
+    function updateBulkState() {
+        const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const countSpan = document.getElementById('selectedCount');
+
+        if (checkboxes.length > 0) {
+            bulkActions.classList.remove('d-none');
+            countSpan.innerText = checkboxes.length;
+        } else {
+            bulkActions.classList.add('d-none');
+        }
+    }
+</script>
+{% endblock %}

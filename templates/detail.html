@@ -1,0 +1,687 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Detail Anggaran: Kode {{ kode }}</h4>
+        <p class="text-muted mb-0">Rincian kegiatan untuk kode anggaran {{ kode }}</p>
+    </div>
+    <a href="/" class="btn btn-outline-secondary">
+        &larr; Kembali ke Dashboard
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted small fw-bold">Total Pagu Material</h6>
+                <h3 class="mb-0 text-primary">Rp {{ total_pagu_material|ribuan }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-info h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted small fw-bold">Total Pagu Jasa</h6>
+                <h3 class="mb-0 text-info">Rp {{ total_pagu_jasa|ribuan }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted small fw-bold">Grand Total Pagu</h6>
+                <h3 class="mb-0 text-success">Rp {{ total_pagu_total|ribuan }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-transparent py-3 border-bottom border-secondary" style="--bs-border-opacity: .2;">
+        <h5 class="mb-0 fw-bold text-white">Rincian Item</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-borderless mb-0" style="border-collapse: separate; border-spacing: 0;">
+                <thead class="text-white bg-transparent" style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                    <tr>
+                        <th rowspan="2" class="align-middle text-center">No PRK</th>
+                        <th rowspan="2" class="align-middle">Deskripsi</th>
+                        <th colspan="3" class="text-center">Pagu Anggaran</th>
+                        <th colspan="3" class="text-center">Realisasi</th>
+                    </tr>
+                    <tr>
+                        <th class="text-end">Material</th>
+                        <th class="text-end">Jasa</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Terkontrak</th>
+                        <th class="text-end">Terbayar</th>
+                        <th class="text-end">Sisa (dari RAB)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <!-- Spacer Row -->
+                    <!-- Spacer Row with Visual Divider -->
+                    <tr style="height: 60px; background-color: var(--bg-dark); border: transparent;">
+                        <td colspan="12" style="border: none;"></td>
+                    </tr>
+
+                    <!-- Parent Row (Budget Line) -->
+                    <tr class="align-middle border border-secondary shadow-sm"
+                        style="background-color: #2d3748; color: white; border-left: 5px solid var(--accent-primary) !important;">
+                        <td class="text-nowrap fw-bold">{{ item.no_prk }}</td>
+                        <td>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-bold text-white">{{ item.deskripsi }}</div>
+                                    <!-- Progress Bar -->
+                                    {% if item.pagu_total > 0 %}
+                                    {% set percent = (item.ellipse_rp / item.pagu_total) * 100 %}
+                                    {% else %}
+                                    {% set percent = 0 %}
+                                    {% endif %}
+                                    <div class="progress mt-2 mb-1 bg-white" style="height: 8px; width: 200px;">
+                                        <div class="progress-bar {% if percent > 100 %}bg-danger{% elif percent > 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                            role="progressbar" style="width: {{ percent }}%"
+                                            aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <small class="text-secondary fw-bold" style="font-size: 0.75rem;">Realisasi: {{
+                                        "{:.1f}".format(percent) }}%</small>
+                                </div>
+                                <div class="ms-2">
+                                    <button class="btn btn-sm btn-primary shadow-sm" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#jobs-{{ item.id }}"
+                                        aria-expanded="false">
+                                        Rincian Pekerjaan
+                                        {% if item.jobs|length > 0 %}
+                                        <span class="badge bg-white text-primary ms-1 shadow-sm">{{ item.jobs|length
+                                            }}</span>
+                                        {% endif %}
+                                    </button>
+                                    {% if current_user.is_authenticated and current_user.role in ['admin',
+                                    'super_admin'] %}
+                                    <button class="btn btn-warning shadow-sm ms-2 fw-bold" type="button"
+                                        onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')"
+                                        style="box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);">
+                                        <i class="bi bi-plus-lg"></i> Tambah
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        <td class="text-end fw-bold text-white">Rp {{ item.pagu_material|ribuan }}</td>
+                        <td class="text-end fw-bold text-white">Rp {{ item.pagu_jasa|ribuan }}</td>
+                        <td class="text-end fw-extrabold text-white">Rp {{ item.pagu_total|ribuan }}</td>
+                        <td class="text-end text-white">Rp {{ item.terkontrak_rp|ribuan }}</td>
+                        <td class="text-end text-white">Rp {{ item.terbayar_rp|ribuan }}</td>
+                        <td class="text-end fw-bold text-white">Rp {{ (item.pagu_total - item.usulan_rab_rp)|ribuan }}
+                        </td>
+                    </tr>
+                    <tr class="collapse show" id="jobs-{{ item.id }}">
+                        <td colspan="12" class="p-0 border-0">
+                            <div
+                                class="card card-body bg-transparent rounded-0 border-0 p-3 shadow-sm border-start border-5 border-info">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                                    <h6 class="fw-bold mb-0 text-secondary">
+                                        <i class="bi bi-arrow-return-right me-2"></i>Daftar Pekerjaan ({{
+                                        item.jobs|length }})
+                                    </h6>
+                                    {% if current_user.is_authenticated and current_user.role in ['admin',
+                                    'super_admin'] %}
+                                    <button class="btn btn-sm btn-outline-warning"
+                                        onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')">
+                                        <i class="bi bi-plus-circle me-1"></i> Tambah Item
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% if item.jobs %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-dark table-bordered bg-transparent mb-0"
+                                        style="font-size: 0.85em; --bs-table-bg: transparent; --bs-table-color: var(--text-main);">
+                                        <thead class="align-middle"
+                                            style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                                            <tr>
+                                                <th>Nama Pekerjaan</th>
+                                                <th>Tanggal TOR</th>
+                                                <th>Tgl Dibutuhkan</th>
+                                                <!-- Fields HIDDEN from table to reduce clutter: No VKA, COA -->
+                                                <th class="text-end">RAB (Seb. PPN)</th>
+                                                <th class="text-end">Terkontrak</th>
+                                                <th class="text-end">Terbayar</th>
+
+                                                <th class="text-center">Status</th>
+                                                <th class="text-center">Jenis</th>
+                                                <th class="text-center" style="width: 100px;">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for job in item.jobs %}
+                                            <tr>
+                                                <td>{{ job.nama_pekerjaan }}</td>
+                                                <td>{{ job.tanggal_tor }}</td>
+                                                <td>{{ job.tanggal_dibutuhkan }}</td>
+                                                <td class="text-end">Rp {{ job.rab_sebelum_ppn|ribuan }}</td>
+                                                <td class="text-end">Rp {{ job.terkontrak_rp|ribuan }}</td>
+                                                <td class="text-end">Rp {{ job.terbayar_rp|ribuan }}</td>
+
+                                                <td class="text-center">
+                                                    <span class="badge 
+                                                        {% if job.status == 'User' %}bg-primary
+                                                        {% elif job.status == 'Rendan' %}bg-warning text-dark
+                                                        {% elif job.status == 'Lakdan' %}bg-success
+                                                        {% elif job.status == 'Proses Pembayaran' or job.status == 'Terbayar' or job.status == 'Selesai' %}bg-dark
+                                                        {% else %}bg-info text-dark{% endif %}">
+                                                        {{ job.status or 'User' }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">{{ job.jenis_pengadaan }}</td>
+
+                                                <td class="text-center">
+                                                    {% if current_user.is_authenticated and current_user.role in
+                                                    ['admin', 'super_admin'] %}
+                                                    <button class="btn btn-sm btn-outline-primary"
+                                                        onclick='openEditJobModal({{ job.to_dict()|tojson }})'>
+                                                        Detail
+                                                    </button>
+                                                    {% else %} <!-- View only for non-admin -->
+                                                    <button class="btn btn-sm btn-outline-info"
+                                                        onclick='openHistoryModal({{ job.to_dict()|tojson }})'>
+                                                        Log
+                                                    </button>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="12" class="text-center text-muted fst-italic">Belum ada
+                                                    rincian pekerjaan.</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Adding Job -->
+<div class="modal fade" id="addJobModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tambah Pekerjaan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addJobForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Item Anggaran (PRK)</label>
+                        <input type="text" class="form-control" id="budgetLineName" disabled>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nama Pekerjaan</label>
+                            <input type="text" name="nama_pekerjaan" class="form-control" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tanggal TOR</label>
+                            <input type="date" name="tanggal_tor" class="form-control">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tanggal Dibutuhkan</label>
+                            <input type="date" name="tanggal_dibutuhkan" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">No. VKA</label>
+                            <input type="text" name="no_vka" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">COA</label>
+                            <input type="text" name="coa" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">RAB (Seb. PPN)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="rab_sebelum_ppn" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Terkontrak</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="terkontrak_rp" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Terbayar</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="terbayar_rp" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Jenis Pengadaan</label>
+                            <select name="jenis_pengadaan" class="form-select">
+                                <option value="B">Barang (B)</option>
+                                <option value="J">Jasa (J)</option>
+                                <option value="K">Konstruksi (K)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">PIC</label>
+                        <select name="pic" class="form-select">
+                            <option value="">- Pilih PIC -</option>
+                            <option value="K3">K3</option>
+                            <option value="Lingkungan">Lingkungan</option>
+                            <option value="Rendal Op">Rendal Op</option>
+                            <option value="Rendal Har">Rendal Har</option>
+                            <option value="BB">BB</option>
+                            <option value="MO">MO</option>
+                            <option value="CBM">CBM</option>
+                            <option value="SO">SO</option>
+                            <option value="MMRK">MMRK</option>
+                            <option value="BS">BS</option>
+                            <option value="Dll">Dll</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</script>
+
+<!-- Modal for Editing Job -->
+<div class="modal fade" id="editJobModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Pekerjaan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editJobForm" method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nama Pekerjaan</label>
+                            <input type="text" name="nama_pekerjaan" id="edit_nama_pekerjaan" class="form-control"
+                                required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tanggal TOR</label>
+                            <input type="date" name="tanggal_tor" id="edit_tanggal_tor" class="form-control">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tanggal Dibutuhkan</label>
+                            <input type="date" name="tanggal_dibutuhkan" id="edit_tanggal_dibutuhkan"
+                                class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">No. VKA</label>
+                            <input type="text" name="no_vka" id="edit_no_vka" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">COA</label>
+                            <input type="text" name="coa" id="edit_coa" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">RAB (Seb. PPN)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="rab_sebelum_ppn" id="edit_rab_sebelum_ppn"
+                                    class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Terkontrak</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="terkontrak_rp" id="edit_terkontrak_rp" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Terbayar</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="terbayar_rp" id="edit_terbayar_rp" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Jenis Pengadaan</label>
+                            <select name="jenis_pengadaan" id="edit_jenis_pengadaan" class="form-select">
+                                <option value="B">Barang (B)</option>
+                                <option value="J">Jasa (J)</option>
+                                <option value="K">Konstruksi (K)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Est. Sisa</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="est_sisa" id="edit_est_sisa" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="User">User</option>
+                                <option value="Rendan">Rendan</option>
+                                <option value="Lakdan">Lakdan</option>
+                                <option value="Terkontrak">Terkontrak</option>
+                                <option value="Levering">Levering</option>
+                                <option value="Serah Terima Pekerjaan">Serah Terima Pekerjaan</option>
+                                <option value="Penerbitan BA">Penerbitan BA</option>
+                                <option value="Proses Pembayaran">Proses Pembayaran</option>
+                                <option value="Selesai">Selesai</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">PIC</label>
+                        <select name="pic" id="edit_pic" class="form-select">
+                            <option value="">- Pilih PIC -</option>
+                            <option value="K3">K3</option>
+                            <option value="Lingkungan">Lingkungan</option>
+                            <option value="Rendal Op">Rendal Op</option>
+                            <option value="Rendal Har">Rendal Har</option>
+                            <option value="BB">BB</option>
+                            <option value="MO">MO</option>
+                            <option value="CBM">CBM</option>
+                            <option value="SO">SO</option>
+                            <option value="MMRK">MMRK</option>
+                            <option value="BS">BS</option>
+                            <option value="Dll">Dll</option>
+                        </select>
+                    </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div class="d-flex gap-2">
+                    <button type="button" id="btnLogJob" class="btn btn-info text-white"><i
+                            class="bi bi-clock-history"></i> Log</button>
+                    <form id="deleteJobFormInModal" method="POST" class="d-inline"
+                        onsubmit="return confirm('Apakah Anda yakin ingin menghapus pekerjaan ini?');">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Hapus</button>
+                    </form>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" form="editJobForm" class="btn btn-warning">Update</button>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for History -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Riwayat & Evaluasi Pekerjaan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 id="historyJobTitle" class="fw-bold mb-3"></h6>
+
+                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                <div class="card mb-4 bg-light border-0">
+                    <div class="card-body">
+                        <h6 class="card-title">Tambah Catatan</h6>
+                        <form id="addProgressForm" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">Catatan / Evaluasi</label>
+                                <textarea name="notes" class="form-control" rows="2" required
+                                    placeholder="Contoh: Material sudah on site..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Progress (%)</label>
+                                <input type="range" name="progress_percent" class="form-range" min="0" max="100"
+                                    id="progressRange"
+                                    oninput="document.getElementById('progressVal').innerText = this.value + '%'">
+                                <span id="progressVal" class="fw-bold">0%</span>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <h6 class="mb-2">Timeline</h6>
+                <div id="historyTimeline" class="list-group list-group-flush">
+                    <!-- Logs will be injected here via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentJobId = null;
+
+    function openHistoryModal(jobData) {
+        currentJobId = jobData.id;
+        document.getElementById('historyJobTitle').innerText = jobData.nama_pekerjaan;
+
+        resetProgressForm();
+
+        // Render Timeline
+        const timelineContainer = document.getElementById('historyTimeline');
+        timelineContainer.innerHTML = '';
+
+        if (jobData.progress_logs && jobData.progress_logs.length > 0) {
+            jobData.progress_logs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+
+                let editBtn = '';
+                // Check if user is admin (we can use a simplified check here since button visibility is also controlled by template, 
+                // but strictly speaking we should pass current_user role to JS or check it in template)
+                // For simplicity, we'll check if the Add Form exists (which only exists for admin)
+                if (document.getElementById('addProgressForm')) {
+                    editBtn = `
+                        <button class="btn btn-link btn-sm p-0 ms-2 text-warning" onclick='editLogItem(${JSON.stringify(log)})'>
+                            <small>Edit</small>
+                        </button>
+                    `;
+                }
+
+                item.innerHTML = `
+                    <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div>
+                            <small class="text-muted fw-bold">${log.created_at}</small>
+                            ${editBtn}
+                        </div>
+                        <small class="fw-bold text-primary">${log.progress_percent}%</small>
+                    </div>
+                    <p class="mb-1 mt-1">${log.notes}</p>
+                    <small class="text-muted fst-italic" style="font-size: 0.8em;">By: ${log.user_name}</small>
+                `;
+                timelineContainer.appendChild(item);
+            });
+        } else {
+            timelineContainer.innerHTML = '<div class="text-center text-muted py-3">Belum ada riwayat.</div>';
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+        modal.show();
+    }
+
+    function editLogItem(log) {
+        const form = document.getElementById('addProgressForm');
+        if (!form) return;
+
+        // Change Title
+        form.parentElement.querySelector('.card-title').innerText = "Edit Catatan";
+
+        // Populate Data
+        form.action = '/edit_progress/' + log.id;
+        form.querySelector('textarea').value = log.notes;
+        form.querySelector('input[type=range]').value = log.progress_percent;
+        document.getElementById('progressVal').innerText = log.progress_percent + "%";
+
+        // Change Button
+        const submitBtn = form.querySelector('button[type=submit]');
+        submitBtn.innerText = "Update";
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-warning');
+
+        // Add Query Selector for Cancel Button (or creaete it if not exists)
+        let cancelBtn = document.getElementById('cancelEditBtn');
+        if (!cancelBtn) {
+            cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.id = 'cancelEditBtn';
+            cancelBtn.className = 'btn btn-sm btn-secondary ms-2';
+            cancelBtn.innerText = 'Batal';
+            cancelBtn.onclick = resetProgressForm;
+            submitBtn.parentElement.appendChild(cancelBtn);
+        }
+    }
+
+    function resetProgressForm() {
+        const form = document.getElementById('addProgressForm');
+        if (!form) return;
+
+        form.parentElement.querySelector('.card-title').innerText = "Tambah Catatan";
+        form.action = '/add_progress/' + currentJobId;
+        form.querySelector('textarea').value = '';
+        form.querySelector('input[type=range]').value = 0;
+        document.getElementById('progressVal').innerText = "0%";
+
+        const submitBtn = form.querySelector('button[type=submit]');
+        submitBtn.innerText = "Simpan";
+        submitBtn.classList.remove('btn-warning');
+        submitBtn.classList.add('btn-primary');
+
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        if (cancelBtn) cancelBtn.remove();
+    }
+
+
+    function openAddJobModal(budgetLineId, budgetLineName) {
+        const form = document.getElementById('addJobForm');
+        form.action = '/add_job/' + budgetLineId;
+
+        document.getElementById('budgetLineName').value = budgetLineName;
+
+        const modal = new bootstrap.Modal(document.getElementById('addJobModal'));
+        modal.show();
+    }
+
+    function openEditJobModal(jobData) {
+        const form = document.getElementById('editJobForm');
+        form.action = '/edit_job/' + jobData.id;
+
+        document.getElementById('edit_nama_pekerjaan').value = jobData.nama_pekerjaan;
+        document.getElementById('edit_tanggal_tor').value = jobData.tanggal_tor;
+        document.getElementById('edit_tanggal_dibutuhkan').value = jobData.tanggal_dibutuhkan;
+        document.getElementById('edit_no_vka').value = jobData.no_vka;
+        document.getElementById('edit_coa').value = jobData.coa;
+        document.getElementById('edit_rab_sebelum_ppn').value = jobData.rab_sebelum_ppn;
+        document.getElementById('edit_est_sisa').value = jobData.est_sisa;
+        document.getElementById('edit_terkontrak_rp').value = jobData.terkontrak_rp;
+        document.getElementById('edit_terbayar_rp').value = jobData.terbayar_rp;
+        document.getElementById('edit_jenis_pengadaan').value = jobData.jenis_pengadaan;
+
+        // Status Logic Split
+        const currentStatus = (jobData.status || 'User').trim();
+        const select = document.getElementById('edit_status');
+        select.innerHTML = ''; // Clear options
+
+        const PROCUREMENT_STAGES = ['User', 'Rendan', 'Lakdan', 'Terkontrak'];
+        // Added 'Terkontrak' to Execution stages to allow viewing it when job is just contracted
+        const EXECUTION_STAGES = ['Terkontrak', 'Levering', 'Serah Terima Pekerjaan', 'Penerbitan BA', 'Proses Pembayaran', 'Selesai'];
+
+        // Determine which list to show
+        let options = [];
+        // If current status is in Procurement (excluding Terkontrak which bridges to execution viewing)
+        if (['User', 'Rendan', 'Lakdan'].includes(currentStatus)) {
+            options = PROCUREMENT_STAGES;
+        } else {
+            // If Terkontrak or any execution stage, show execution options
+            options = EXECUTION_STAGES;
+        }
+
+        // Safety: If somehow currentStatus is NOT in the chosen list, defaulting to allowing it or adding it?
+        // Let's just force add it if missing to avoid "blank" or wrong selection
+        if (!options.includes(currentStatus)) {
+            // Check if it really belongs in the OTHER list? 
+            // If current is 'User' but we somehow picked Execution list? Unlikely with above logic.
+            // But if current is "Unknown", we should add it.
+            options = [currentStatus, ...options];
+        }
+
+        options.forEach(stage => {
+            const option = document.createElement('option');
+            option.value = stage;
+            option.text = stage;
+            // Robust comparison
+            if (stage.toLowerCase() === currentStatus.toLowerCase()) option.selected = true;
+            select.appendChild(option);
+        });
+
+        // Loophole: If status is 'Terkontrak' but user wants to see it selected?
+        // EXECUTION_STAGES doesn't have 'Terkontrak'.
+        // If status is 'Terkontrak', it should be select-able?
+        // Actually, if we show Execution Stages: ['Levering', ...]. 
+        // Then 'Terkontrak' is not in the list.
+        // If the user wants to stay at 'Terkontrak', the dropdown will default to the first option ('Levering').
+        // This forces progress.
+        // Wait, if I am at 'Terkontrak', I might want to SEE 'Terkontrak'.
+        // In the monitoring page tab 2, I showed 'Levering' ... 'Selesai'.
+        // If I am at 'Terkontrak', the dropdown there shows 'Levering'...
+        // So yes, consistent. User effectively forces next step.
+        // However, it might be safer to Add 'Terkontrak' to Execution list temporarily if current status is Terkontrak?
+        // But user said: "hanya levering sampai selesai" in Exeuction.
+        // So I will stick to that.
+
+        document.getElementById('edit_pic').value = jobData.pic || '';
+
+        // Update Log Button Action
+        const btnLog = document.getElementById('btnLogJob');
+        if (btnLog) {
+            btnLog.onclick = function () {
+                openHistoryModal(jobData);
+            };
+        }
+
+        // Update Delete Button Action
+        const deleteForm = document.getElementById('deleteJobFormInModal');
+        if (deleteForm) {
+            deleteForm.action = '/delete_job/' + jobData.id;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('editJobModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
+```

@@ -1,0 +1,496 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-4" id="monitorTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="pengadaan-tab" data-bs-toggle="tab" data-bs-target="#pengadaan"
+            type="button" role="tab" aria-selected="true">1. Monitoring Pengadaan Jasa {{ selected_year }}</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="pelaksanaan-tab" data-bs-toggle="tab" data-bs-target="#pelaksanaan"
+            type="button" role="tab" aria-selected="false">2. Monitoring Pelaksanaan {{ selected_year }}</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="monitorTabContent">
+    <!-- Filter Form -->
+    <div class="col-12 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                <form action="{{ url_for('monitoring') }}" method="GET" class="d-flex align-items-center">
+                    {% if selected_status %}
+                    <input type="hidden" name="status" value="{{ selected_status }}">
+                    {% endif %}
+                    <label class="me-2 fw-bold">Filter PIC:</label>
+                    <select name="pic" class="form-select me-2" style="max-width: 200px;" onchange="this.form.submit()">
+                        <option value="">Semua PIC</option>
+                        {% for p in unique_pics %}
+                        <option value="{{ p }}" {% if selected_pic==p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if selected_pic or selected_status %}
+                    <a href="{{ url_for('monitoring') }}" class="btn btn-outline-secondary btn-sm">Reset Filter</a>
+                    {% endif %}
+                </form>
+
+                {% if selected_status %}
+                <div class="badge bg-info text-dark fs-6">
+                    Filter Status: {{ selected_status }}
+                    <a href="{{ url_for('monitoring', pic=selected_pic) }}" class="text-dark ms-2"><i
+                            class="bi bi-x-circle"></i></a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 1: PENGADAAN JASA -->
+    <div class="tab-pane fade show active" id="pengadaan" role="tabpanel">
+        <h4 class="mb-3 text-primary">Monitoring Proses Pengadaan</h4>
+
+        <!-- Summary Cards (Clickable Filters) -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <a href="{{ url_for('monitoring', status='User', pic=selected_pic) }}" class="text-decoration-none">
+                    <div
+                        class="card text-white bg-primary shadow-sm h-100 card-hover-effect {% if selected_status == 'User' %}border-warning border-4{% endif %}">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">User</h5>
+                            <h2 class="display-4 fw-bold mb-0">{{ total_summary['User'] }}</h2>
+                            <p class="card-text mb-2">Pekerjaan</p>
+                            <div class="fs-5 fw-bold bg-white text-primary rounded px-2 py-1 d-inline-block shadow-sm">
+                                Rp {{ value_summary['User']|ribuan }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('monitoring', status='Rendan', pic=selected_pic) }}" class="text-decoration-none">
+                    <div
+                        class="card text-white bg-warning shadow-sm h-100 card-hover-effect {% if selected_status == 'Rendan' %}border-primary border-4{% endif %}">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Rendan</h5>
+                            <h2 class="display-4 fw-bold mb-0">{{ total_summary['Rendan'] }}</h2>
+                            <p class="card-text mb-2">Pekerjaan</p>
+                            <div class="fs-5 fw-bold bg-white text-warning rounded px-2 py-1 d-inline-block shadow-sm">
+                                Rp {{ value_summary['Rendan']|ribuan }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('monitoring', status='Lakdan', pic=selected_pic) }}" class="text-decoration-none">
+                    <div
+                        class="card text-white bg-success shadow-sm h-100 card-hover-effect {% if selected_status == 'Lakdan' %}border-warning border-4{% endif %}">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Lakdan</h5>
+                            <h2 class="display-4 fw-bold mb-0">{{ total_summary['Lakdan'] }}</h2>
+                            <p class="card-text mb-2">Pekerjaan</p>
+                            <div class="fs-5 fw-bold bg-white text-success rounded px-2 py-1 d-inline-block shadow-sm">
+                                Rp {{ value_summary['Lakdan']|ribuan }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <style>
+            .card-hover-effect:hover {
+                transform: translateY(-5px);
+                transition: transform 0.2s;
+                opacity: 0.9;
+                cursor: pointer;
+            }
+        </style>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold">Daftar Pekerjaan (Fase Pengadaan)</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="text-center">No.</th>
+                                <th>PRK</th>
+                                <th>Pekerjaan</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">PIC</th>
+                                <th class="text-end">RAB</th>
+                                <th style="width: 25%;">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in procurement_jobs %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <div class="fw-bold"><span class="badge bg-secondary">{{ item.kode }}</span> {{
+                                        item.no_prk }}</div>
+                                    <small class="text-muted">{{ item.deskripsi }}</small>
+                                </td>
+                                <td class="fw-bold text-primary">{{ item.job_name }}</td>
+                                <td class="text-center">
+                                    <span class="badge 
+                                        {% if item.job_status == 'User' %}bg-primary
+                                        {% elif item.job_status == 'Rendan' %}bg-warning text-dark
+                                        {% else %}bg-success{% endif %}">
+                                        {{ item.job_status }}
+                                    </span>
+                                    {% if current_user.role == 'admin' %}
+                                    <div class="mt-1">
+                                        <button class="btn btn-xs btn-outline-secondary py-0"
+                                            style="font-size: 0.65rem;"
+                                            onclick="openStatusModal('{{ item.job_id }}', '{{ item.job_name }}', '{{ item.job_status }}', 'procurement')">
+                                            Update
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.job_pic }}</td>
+                                <td class="text-end small">Rp {{ item.job_rab|ribuan }}</td>
+                                <td class="small">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="text-muted fst-italic me-2"
+                                            style="max-height: 50px; overflow-y: auto;">
+                                            {{ item.latest_note }}
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary" style="font-size: 0.7rem;"
+                                            onclick="openLogModal('{{ item.job_id }}', '{{ item.job_name }}')">
+                                            <i class="bi bi-pencil-square"></i> Log
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">Tidak ada pekerjaan di fase ini
+                                    (sesuai filter).
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: PELAKSANAAN -->
+    <div class="tab-pane fade" id="pelaksanaan" role="tabpanel">
+        <h4 class="text-primary mb-3">Monitoring Pelaksanaan (Terkontrak - Selesai)</h4>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" style="font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;" class="text-center">No.</th>
+                                <th style="width: 200px;">Pekerjaan</th>
+                                <th>Progress Tahapan</th>
+                                <th style="width: 80px;" class="text-center">PIC</th>
+                                <th style="width: 25%;">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in execution_jobs %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <div class="fw-bold text-primary mb-1">{{ item.job_name }}</div>
+                                    <small class="text-muted d-block">{{ item.no_prk }} ({{ item.deskripsi }})</small>
+                                </td>
+                                <td>
+                                    <!-- Pipeline Visualization -->
+                                    {% set stages = ['Levering', 'Serah Terima Pekerjaan', 'Penerbitan BA', 'Proses
+                                    Pembayaran', 'Selesai'] %}
+                                    {% set ns = namespace(current_stage_idx=-1) %}
+
+                                    {# Find index regardless of case/spacing #}
+                                    {% for s in stages %}
+                                    {# Use strip().lower() for robust matching #}
+                                    {% if s.lower() == item.job_status.strip().lower() %}
+                                    {% set ns.current_stage_idx = loop.index0 %}
+                                    {% endif %}
+                                    {% endfor %}
+
+                                    {# Fallback if not found (e.g. slight mismatch), assume first or last #}
+                                    {% if ns.current_stage_idx == -1 and item.job_status == 'Proses Pembayaran' %}
+                                    {% set ns.current_stage_idx = 3 %}
+                                    {% endif %}
+
+                                    <div
+                                        class="d-flex justify-content-between align-items-center position-relative mt-2 mb-2">
+                                        <!-- Line -->
+                                        <div class="position-absolute w-100 bg-secondary"
+                                            style="height: 2px; top: 50%; z-index: 0; opacity: 0.2;"></div>
+                                        <div class="position-absolute bg-success"
+                                            style="height: 2px; top: 50%; z-index: 0; width: {{ (ns.current_stage_idx / (stages|length - 1)) * 100 }}%">
+                                        </div>
+
+                                        {% for s in stages %}
+                                        <div class="text-center position-relative" style="z-index: 1; width: 16%;">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1"
+                                                style="width: 20px; height: 20px; font-size: 10px;
+                                                {% if loop.index0 < ns.current_stage_idx %}background-color: #198754; color: white; border: 2px solid #198754;
+                                                {% elif loop.index0 == ns.current_stage_idx %}background-color: #ffc107; color: black; border: 2px solid #ffc107; box-shadow: 0 0 5px rgba(255,193,7,0.5);
+                                                {% else %}background-color: white; border: 2px solid #ccc; color: #ccc;{% endif %}">
+                                                {% if loop.index0 < ns.current_stage_idx %}&check;{% endif %} </div>
+                                                    <small
+                                                        style="font-size: 0.7rem; line-height: 1.1; display: block; 
+                                                {% if loop.index0 == ns.current_stage_idx %}font-weight: bold; color: var(--accent-primary);{% else %}color: var(--text-muted);{% endif %}">
+                                                        {{ s }}
+                                                    </small>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% if current_user.role in ['admin', 'super_admin'] %}
+                                        <div class="text-end">
+                                            <button class="btn btn-xs btn-outline-success py-0"
+                                                style="font-size: 0.7rem;"
+                                                onclick="openStatusModal('{{ item.job_id }}', '{{ item.job_name }}', '{{ item.job_status }}', 'execution')">
+                                                Update Tahapan
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.job_pic }}</td>
+                                <td class="small">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="text-muted fst-italic me-2"
+                                            style="max-height: 50px; overflow-y: auto;">
+                                            {{ item.latest_note }}
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary" style="font-size: 0.7rem;"
+                                            onclick="openLogModal('{{ item.job_id }}', '{{ item.job_name }}')">
+                                            <i class="bi bi-pencil-square"></i> Log
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">Belum ada pekerjaan di fase
+                                    pelaksanaan (sesuai filter).</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Modal (Simplified for Monitoring) -->
+<div class="modal fade" id="monitoringLogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Progress & Hambatan: <span id="logJobName" class="fw-bold"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Add New Log Form -->
+                {% if current_user.role in ['admin', 'super_admin'] %}
+                <div class="card mb-3 border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title fw-bold mb-0" id="formTitle">Tambah Keterangan Baru</h6>
+                            <button class="btn btn-sm btn-outline-secondary d-none" id="cancelEditBtn"
+                                onclick="resetLogForm()">Batal Edit</button>
+                        </div>
+                        <form id="addLogForm" method="POST">
+                            <div class="mb-2">
+                                <textarea name="notes" id="logNotes" class="form-control form-control-sm" rows="2"
+                                    placeholder="Tulis progress atau keterangan..." required></textarea>
+                            </div>
+                            <!-- Hidden date/progress fields if needed, or defaults -->
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-sm btn-primary" id="saveLogBtn">Simpan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- History Timeline (Dynamic Content) -->
+                <div id="logTimelineContent">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentJobId = null; // Store current Job ID for reset
+
+    const ALL_STAGES = [
+        'User', 'Rendan', 'Lakdan',
+        'Terkontrak', 'Levering', 'Serah Terima Pekerjaan',
+        'Penerbitan BA', 'Proses Pembayaran', 'Selesai'
+    ];
+
+    const PROCUREMENT_STAGES = ['User', 'Rendan', 'Lakdan', 'Terkontrak'];
+    const EXECUTION_STAGES = ['Levering', 'Serah Terima Pekerjaan', 'Penerbitan BA', 'Proses Pembayaran', 'Selesai'];
+
+    function openStatusModal(jobId, jobName, currentStatus, type) {
+        document.getElementById('statusJobName').innerText = jobName;
+
+        let tabParam = 'procurement';
+        if (type === 'execution') {
+            tabParam = 'pelaksanaan';
+        }
+
+        document.getElementById('updateStatusForm').action = "/update_job_status/" + jobId + "?redirect=monitoring&tab=" + tabParam;
+
+        const select = document.getElementById('newStatusSelect');
+        select.innerHTML = ''; // Clear existing options
+
+        let options = ALL_STAGES;
+        if (type === 'procurement') {
+            options = PROCUREMENT_STAGES;
+        } else if (type === 'execution') {
+            options = EXECUTION_STAGES;
+        }
+
+        // Populate options
+        options.forEach(stage => {
+            const option = document.createElement('option');
+            option.value = stage;
+            option.text = stage;
+            if (stage === currentStatus) option.selected = true;
+            select.appendChild(option);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+        modal.show();
+    }
+
+    function openLogModal(jobId, jobName) {
+        currentJobId = jobId;
+        document.getElementById('logJobName').innerText = jobName;
+        resetLogForm(); // Reset form state
+
+        const modal = new bootstrap.Modal(document.getElementById('monitoringLogModal'));
+        modal.show();
+
+        loadLogHistory(jobId);
+    }
+
+    function resetLogForm() {
+        document.getElementById('addLogForm').action = "/add_progress/" + currentJobId + "?redirect=monitoring";
+        document.getElementById('formTitle').innerText = "Tambah Keterangan Baru";
+        document.getElementById('logNotes').value = "";
+        document.getElementById('saveLogBtn').innerText = "Simpan";
+        document.getElementById('saveLogBtn').classList.remove('btn-warning');
+        document.getElementById('saveLogBtn').classList.add('btn-primary');
+        document.getElementById('cancelEditBtn').classList.add('d-none');
+    }
+
+    function editLog(id, note) {
+        // Switch form to Edit Mode
+        document.getElementById('addLogForm').action = "/edit_progress/" + id + "?redirect=monitoring";
+        document.getElementById('formTitle').innerText = "Edit Keterangan";
+        document.getElementById('logNotes').value = note; // Populate textarea
+        document.getElementById('saveLogBtn').innerText = "Update";
+        document.getElementById('saveLogBtn').classList.remove('btn-primary');
+        document.getElementById('saveLogBtn').classList.add('btn-warning');
+        document.getElementById('cancelEditBtn').classList.remove('d-none'); // Show cancel button
+
+        // Scroll to form
+        document.querySelector('.modal-body').scrollTop = 0;
+    }
+
+    function loadLogHistory(jobId) {
+        const container = document.getElementById('logTimelineContent');
+        container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
+
+        fetch('/get_job_logs/' + jobId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    container.innerHTML = '<p class="text-muted text-center py-2">Belum ada catatan.</p>';
+                    return;
+                }
+
+                let html = '<div class="list-group list-group-flush">';
+                data.forEach(log => {
+                    // Escape quotes for onclick
+                    let safeNote = "";
+                    if (log.notes) {
+                        safeNote = log.notes.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    }
+
+                    html += `
+                        <div class="list-group-item px-0 bg-transparent border-bottom border-light" style="border-opacity: 0.1;">
+                            <div class="d-flex w-100 justify-content-between">
+                                <small class="text-muted">${log.created_at} - <strong>${log.user_name}</strong></small>
+                                ${'{{ current_user.role }}' === 'admin' ?
+                            `<button class="btn btn-link btn-sm p-0 text-decoration-none text-warning" onclick="editLog('${log.id}', '${safeNote}')">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>` : ''}
+                            </div>
+                            <p class="mb-1 text-sm text-light">${log.notes}</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                container.innerHTML = '<p class="text-danger text-center">Gagal memuat history.</p>';
+                console.error(error);
+            });
+    }
+
+
+    // Activate tab based on URL parameter
+    document.addEventListener("DOMContentLoaded", function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+
+        if (activeTab === 'pelaksanaan') {
+            const triggerEl = document.querySelector('#monitorTab button[data-bs-target="#pelaksanaan"]');
+            if (triggerEl) {
+                const tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+            }
+        }
+    });
+</script>
+
+<!-- Update Status Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Tahapan: <span id="statusJobName" class="fw-bold"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateStatusForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Pilih Tahapan Baru</label>
+                        <select name="status" id="newStatusSelect" class="form-select" required>
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

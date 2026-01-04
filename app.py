@@ -29,6 +29,7 @@ def format_ribuan(value):
     return "{:,.0f}".format(value).replace(',', '.')
 
 @app.route('/')
+@login_required
 def index():
     # Year Filter Logic
     current_year = datetime.datetime.now().year
@@ -36,7 +37,7 @@ def index():
     
     kode_filter = request.args.get('kode')
     
-    query = BudgetLine.query.filter_by(tahun=selected_year)
+    query = BudgetLine.query.filter_by(tahun=selected_year).order_by(BudgetLine.order_index.asc())
     
     if kode_filter:
         query = query.filter_by(kode=kode_filter)
@@ -471,6 +472,12 @@ def update_db_schema():
                 conn.execute(db.text(f"ALTER TABLE budget_line ADD COLUMN tahun INTEGER DEFAULT 2026"))
                 conn.commit()
 
+        if 'order_index' not in columns_budget:
+            print("Adding order_index column to budget_line...")
+            with db.engine.connect() as conn:
+                conn.execute(db.text("ALTER TABLE budget_line ADD COLUMN order_index INTEGER DEFAULT 0"))
+                conn.commit()
+
 @app.route('/monitoring')
 @login_required
 def monitoring():
@@ -698,6 +705,96 @@ def get_job_logs(job_id):
         })
         
     return jsonify(logs_data)
+
+@app.route('/users')
+@login_required
+def list_users():
+    if current_user.role != 'super_admin':
+        return "Unauthorized", 403
+    users = User.query.all()
+    return render_template('manage_users.html', users=users)
+
+@app.route('/users/add', methods=['POST'])
+@login_required
+def add_user():
+    if current_user.role != 'super_admin':
+        return "Unauthorized", 403
+        
+    username = request.form.get('username')
+    password = request.form.get('password')
+    role = request.form.get('role')
+    
+    if User.query.filter_by(username=username).first():
+        flash('Username already exists', 'danger')
+        return redirect(url_for('list_users'))
+        
+    new_user = User(username=username, password_hash=generate_password_hash(password), role=role)
+    db.session.add(new_user)
+    db.session.commit()
+    flash('User added successfully', 'success')
+    return redirect(url_for('list_users'))
+
+@app.route('/users/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_user(id):
+    if current_user.role != 'super_admin':
+        return "Unauthorized", 403
+        
+    user = User.query.get_or_404(id)
+    user.role = request.form.get('role')
+    
+    password = request.form.get('password')
+    if password:
+        user.password_hash = generate_password_hash(password)
+        
+    db.session.commit()
+    flash('User updated successfully', 'success')
+    return redirect(url_for('list_users'))
+
+@app.route('/users/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_user(id):
+    if current_user.role != 'super_admin':
+        return "Unauthorized", 403
+        
+    user = User.query.get_or_404(id)
+    if user.username == 'superadmin': # Prevent deleting main superadmin if desired
+        flash('Cannot delete main superadmin', 'error')
+        return redirect(url_for('list_users'))
+        
+    db.session.delete(user)
+    db.session.commit()
+    flash('User deleted successfully', 'success')
+    return redirect(url_for('list_users'))
+
+@app.route('/reorder_budget_lines', methods=['POST'])
+@login_required
+def reorder_budget_lines():
+    if current_user.role not in ['admin', 'super_admin']:
+        return "Unauthorized", 403
+        
+    order_data = request.json.get('order', [])
+    
+    # order_data should be a list of IDs in the new order
+    # e.g. [3, 1, 2, 5, 4]
+    
+    try:
+        if not order_data:
+             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+
+        for index, item_id in enumerate(order_data):
+            # Optimally we would do a bulk update, but loop is fine for small datasets
+            db.session.execute(
+                db.update(BudgetLine).where(BudgetLine.id == item_id).values(order_index=index)
+            )
+            
+        db.session.commit()
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     with app.app_context():

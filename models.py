@@ -21,6 +21,7 @@ class BudgetLine(db.Model):
     terkontrak_rp = db.Column(db.Float, default=0)
     terbayar_rp = db.Column(db.Float, default=0)
     ellipse_rp = db.Column(db.Float, default=0)
+    order_index = db.Column(db.Integer, default=0) # For drag and drop sorting
 
     def to_dict(self):
         return {

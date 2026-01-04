@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} <!-- Updated for Drag and Drop -->
 
 
 
@@ -91,6 +91,11 @@
                                 <div style="font-size: 0.6rem; margin-top: 2px;" class="text-danger">Hapus</div>
                             </th>
                             {% endif %}
+                            {% if current_user.role in ['admin', 'super_admin'] %}
+                            <th rowspan="2" class="text-center align-middle" style="width: 30px;">
+                                <i class="bi bi-arrows-move"></i>
+                            </th>
+                            {% endif %}
                             <th rowspan="2" class="text-center align-middle">No.</th>
                             <th rowspan="2" class="text-center align-middle">Kode</th>
                             <th rowspan="2" class="align-middle">No PRK</th>
@@ -109,16 +114,21 @@
                             <th class="text-end">Ellipse</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="budgetTableBody">
                         {% for item in items %}
-                        <tr>
+                        <tr data-id="{{ item.id }}">
                             {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
                             <td class="text-center">
                                 <input type="checkbox" name="ids" value="{{ item.id }}"
                                     class="form-check-input item-checkbox" onclick="updateBulkState()">
                             </td>
                             {% endif %}
-                            <td class="text-center">{{ loop.index }}</td>
+                            {% if current_user.role in ['admin', 'super_admin'] %}
+                            <td class="text-center align-middle handle" style="cursor: grab;">
+                                <i class="bi bi-grip-vertical text-muted"></i>
+                            </td>
+                            {% endif %}
+                            <td class="text-center row-number">{{ loop.index }}</td>
                             <td class="text-center">
                                 <span class="badge bg-info text-dark">{{ item.kode }}</span>
                             </td>
@@ -167,8 +177,54 @@
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Drag and Drop Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.getElementById('budgetTableBody');
+        {% if current_user.role in ['admin', 'super_admin'] %}
+        if (el) {
+            new Sortable(el, {
+                handle: '.handle', // handle's class
+                animation: 150,
+                onEnd: function (evt) {
+                    // Get all IDs in new order
+                    const rows = el.querySelectorAll('tr[data-id]');
+                    const order = Array.from(rows).map(row => row.getAttribute('data-id'));
+
+                    // Update Row Numbers visually
+                    rows.forEach((row, index) => {
+                        const numCell = row.querySelector('.row-number');
+                        if (numCell) numCell.innerText = index + 1;
+                    });
+
+                    // Send to server
+                    fetch('{{ url_for("reorder_budget_lines") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ order: order }),
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                console.log('Order saved');
+                            } else {
+                                alert('Gagal menyimpan urutan: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                            alert('Terjadi kesalahan saat menyimpan urutan.');
+                        });
+                }
+            });
+        }
+        {% endif %}
+    });
+
     const chartLabels = {{ chart_labels | tojson }};
     const chartPagu = {{ chart_pagu | tojson }};
     const chartEllipse = {{ chart_ellipse | tojson }};
@@ -176,7 +232,7 @@
     const chartPercent = {{ chart_percent | tojson }};
 
     const ctx = document.getElementById('budgetChart').getContext('2d');
-    
+
     // Horizontal Stacked Bar Chart
     const budgetChart = new Chart(ctx, {
         type: 'bar',
@@ -216,7 +272,7 @@
                     grid: { color: 'rgba(255, 255, 255, 0.1)' },
                     ticks: {
                         color: '#94A3B8',
-                        callback: function(value) {
+                        callback: function (value) {
                             return 'Rp ' + (value / 1000).toLocaleString('id-ID');
                         }
                     }
@@ -230,7 +286,7 @@
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.dataset.label || '';
                             if (label) { label += ': '; }
                             if (context.parsed.x !== null) {
@@ -238,12 +294,12 @@
                             }
                             return label;
                         },
-                        footer: function(tooltipItems) {
-                             let total = 0;
-                             tooltipItems.forEach(function(tooltipItem) {
-                                 total += tooltipItem.parsed.x;
-                             });
-                             return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID');
+                        footer: function (tooltipItems) {
+                            let total = 0;
+                            tooltipItems.forEach(function (tooltipItem) {
+                                total += tooltipItem.parsed.x;
+                            });
+                            return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID');
                         }
                     }
                 },

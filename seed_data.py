@@ -1,5 +1,7 @@
-from app import app
-from models import db, BudgetLine
+from app import create_app
+from app.models import db, BudgetLine
+
+app = create_app()
 
 def seed():
     with app.app_context():

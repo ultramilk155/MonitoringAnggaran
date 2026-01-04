@@ -17,7 +17,7 @@
     <div class="col-12 mb-3">
         <div class="card shadow-sm">
             <div class="card-body py-2 d-flex justify-content-between align-items-center">
-                <form action="{{ url_for('monitoring') }}" method="GET" class="d-flex align-items-center">
+                <form action="{{ url_for('main.monitoring') }}" method="GET" class="d-flex align-items-center">
                     {% if selected_status %}
                     <input type="hidden" name="status" value="{{ selected_status }}">
                     {% endif %}
@@ -29,14 +29,14 @@
                         {% endfor %}
                     </select>
                     {% if selected_pic or selected_status %}
-                    <a href="{{ url_for('monitoring') }}" class="btn btn-outline-secondary btn-sm">Reset Filter</a>
+                    <a href="{{ url_for('main.monitoring') }}" class="btn btn-outline-secondary btn-sm">Reset Filter</a>
                     {% endif %}
                 </form>
 
                 {% if selected_status %}
                 <div class="badge bg-info text-dark fs-6">
                     Filter Status: {{ selected_status }}
-                    <a href="{{ url_for('monitoring', pic=selected_pic) }}" class="text-dark ms-2"><i
+                    <a href="{{ url_for('main.monitoring', pic=selected_pic) }}" class="text-dark ms-2"><i
                             class="bi bi-x-circle"></i></a>
                 </div>
                 {% endif %}
@@ -51,7 +51,8 @@
         <!-- Summary Cards (Clickable Filters) -->
         <div class="row mb-4">
             <div class="col-md-4">
-                <a href="{{ url_for('monitoring', status='User', pic=selected_pic) }}" class="text-decoration-none">
+                <a href="{{ url_for('main.monitoring', status='User', pic=selected_pic) }}"
+                    class="text-decoration-none">
                     <div
                         class="card text-white bg-primary shadow-sm h-100 card-hover-effect {% if selected_status == 'User' %}border-warning border-4{% endif %}">
                         <div class="card-body text-center">
@@ -66,7 +67,8 @@
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{{ url_for('monitoring', status='Rendan', pic=selected_pic) }}" class="text-decoration-none">
+                <a href="{{ url_for('main.monitoring', status='Rendan', pic=selected_pic) }}"
+                    class="text-decoration-none">
                     <div
                         class="card text-white bg-warning shadow-sm h-100 card-hover-effect {% if selected_status == 'Rendan' %}border-primary border-4{% endif %}">
                         <div class="card-body text-center">
@@ -81,7 +83,8 @@
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{{ url_for('monitoring', status='Lakdan', pic=selected_pic) }}" class="text-decoration-none">
+                <a href="{{ url_for('main.monitoring', status='Lakdan', pic=selected_pic) }}"
+                    class="text-decoration-none">
                     <div
                         class="card text-white bg-success shadow-sm h-100 card-hover-effect {% if selected_status == 'Lakdan' %}border-warning border-4{% endif %}">
                         <div class="card-body text-center">
@@ -233,31 +236,75 @@
                                             style="height: 2px; top: 50%; z-index: 0; width: {{ (ns.current_stage_idx / (stages|length - 1)) * 100 }}%">
                                         </div>
 
+                                        <style>
+                                            .stage-marker {
+                                                width: 20px;
+                                                height: 20px;
+                                                font-size: 10px;
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                margin: 0 auto 0.25rem auto;
+                                            }
+
+                                            .stage-completed {
+                                                background-color: #198754;
+                                                color: white;
+                                                border: 2px solid #198754;
+                                            }
+
+                                            .stage-active {
+                                                background-color: #ffc107;
+                                                color: black;
+                                                border: 2px solid #ffc107;
+                                                box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+                                            }
+
+                                            .stage-pending {
+                                                background-color: white;
+                                                border: 2px solid #ccc;
+                                                color: #ccc;
+                                            }
+
+                                            .stage-label-active {
+                                                font-weight: bold;
+                                                color: var(--accent-primary);
+                                            }
+
+                                            .stage-label-pending {
+                                                color: var(--text-muted);
+                                            }
+                                        </style>
                                         {% for s in stages %}
                                         <div class="text-center position-relative" style="z-index: 1; width: 16%;">
-                                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1"
-                                                style="width: 20px; height: 20px; font-size: 10px;
-                                                {% if loop.index0 < ns.current_stage_idx %}background-color: #198754; color: white; border: 2px solid #198754;
-                                                {% elif loop.index0 == ns.current_stage_idx %}background-color: #ffc107; color: black; border: 2px solid #ffc107; box-shadow: 0 0 5px rgba(255,193,7,0.5);
-                                                {% else %}background-color: white; border: 2px solid #ccc; color: #ccc;{% endif %}">
+                                            {% set marker_class = 'stage-pending' %}
+                                            {% if loop.index0 < ns.current_stage_idx %} {% set
+                                                marker_class='stage-completed' %} {% elif
+                                                loop.index0==ns.current_stage_idx %} {% set marker_class='stage-active'
+                                                %} {% endif %} <div
+                                                class="rounded-circle stage-marker {{ marker_class }}">
                                                 {% if loop.index0 < ns.current_stage_idx %}&check;{% endif %} </div>
-                                                    <small
-                                                        style="font-size: 0.7rem; line-height: 1.1; display: block; 
-                                                {% if loop.index0 == ns.current_stage_idx %}font-weight: bold; color: var(--accent-primary);{% else %}color: var(--text-muted);{% endif %}">
+
+                                                    {% set label_class = 'stage-label-pending' %}
+                                                    {% if loop.index0 == ns.current_stage_idx %}
+                                                    {% set label_class = 'stage-label-active' %}
+                                                    {% endif %}
+
+                                                    <small style="font-size: 0.7rem; line-height: 1.1; display: block;"
+                                                        class="{{ label_class }}">
                                                         {{ s }}
                                                     </small>
-                                            </div>
-                                            {% endfor %}
                                         </div>
-                                        {% if current_user.role in ['admin', 'super_admin'] %}
-                                        <div class="text-end">
-                                            <button class="btn btn-xs btn-outline-success py-0"
-                                                style="font-size: 0.7rem;"
-                                                onclick="openStatusModal('{{ item.job_id }}', '{{ item.job_name }}', '{{ item.job_status }}', 'execution')">
-                                                Update Tahapan
-                                            </button>
-                                        </div>
-                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% if current_user.role in ['admin', 'super_admin'] %}
+                                    <div class="text-end">
+                                        <button class="btn btn-xs btn-outline-success py-0" style="font-size: 0.7rem;"
+                                            onclick="openStatusModal('{{ item.job_id }}', '{{ item.job_name }}', '{{ item.job_status }}', 'execution')">
+                                            Update Tahapan
+                                        </button>
+                                    </div>
+                                    {% endif %}
                                 </td>
                                 <td class="text-center">{{ item.job_pic }}</td>
                                 <td class="small">

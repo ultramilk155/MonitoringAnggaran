@@ -1,4 +1,8 @@
-from app import app, db, BudgetLine, JobDetail, update_budget_line_totals
+from app import create_app
+from app.models import db, BudgetLine, JobDetail
+from app.routes.main import update_budget_line_totals
+
+app = create_app()
 
 def verify():
     with app.app_context():

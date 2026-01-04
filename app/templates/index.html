@@ -51,7 +51,7 @@
         <h5 class="mb-0 fw-bold text-primary">Daftar Anggaran Operasi (AO) {{ selected_year }}</h5>
         <div class="d-flex align-items-center">
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('export_excel') }}" class="btn btn-outline-success me-2">
+            <a href="{{ url_for('main.export_excel') }}" class="btn btn-outline-success me-2">
                 <i class="bi bi-download"></i> Export Data
             </a>
             {% endif %}
@@ -73,7 +73,7 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <form id="bulkDeleteForm" action="{{ url_for('delete_bulk_budget_lines') }}" method="POST"
+        <form id="bulkDeleteForm" action="{{ url_for('admin.delete_bulk_budget_lines') }}" method="POST"
             onsubmit="return confirm('Yakin ingin menghapus item yang dipilih? Semua rincian di dalamnya akan hilang.');">
             <div class="p-2 d-none bg-light border-bottom" id="bulkActions">
                 <button type="submit" class="btn btn-sm btn-danger ms-2">
@@ -148,7 +148,7 @@
                             <td class="text-end text-muted">Rp {{ item.ellipse_rp|ribuan }}</td>
 
                             <td class="text-center">
-                                <a href="{{ url_for('detail', kode=item.kode) }}"
+                                <a href="{{ url_for('main.detail', kode=item.kode) }}"
                                     class="btn btn-sm btn-primary">Detail</a>
                             </td>
                         </tr>
@@ -180,11 +180,14 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // User Role Config
+    const isAuthorized = "{{ 'true' if current_user.role in ['admin', 'super_admin'] else 'false' }}" === "true";
+
     // Drag and Drop Logic
     document.addEventListener('DOMContentLoaded', function () {
         const el = document.getElementById('budgetTableBody');
-        {% if current_user.role in ['admin', 'super_admin'] %}
-        if (el) {
+
+        if (isAuthorized && el) {
             new Sortable(el, {
                 handle: '.handle', // handle's class
                 animation: 150,
@@ -200,7 +203,7 @@
                     });
 
                     // Send to server
-                    fetch('{{ url_for("reorder_budget_lines") }}', {
+                    fetch('{{ url_for("admin.reorder_budget_lines") }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -222,14 +225,14 @@
                 }
             });
         }
-        {% endif %}
     });
 
-    const chartLabels = {{ chart_labels | tojson }};
-    const chartPagu = {{ chart_pagu | tojson }};
-    const chartEllipse = {{ chart_ellipse | tojson }};
-    const chartSisa = {{ chart_sisa | tojson }};
-    const chartPercent = {{ chart_percent | tojson }};
+    // Parse data safely to avoid IDE errors
+    const chartLabels = JSON.parse('{{ chart_labels | tojson | safe }}');
+    const chartPagu = JSON.parse('{{ chart_pagu | tojson | safe }}');
+    const chartEllipse = JSON.parse('{{ chart_ellipse | tojson | safe }}');
+    const chartSisa = JSON.parse('{{ chart_sisa | tojson | safe }}');
+    const chartPercent = JSON.parse('{{ chart_percent | tojson | safe }}');
 
     const ctx = document.getElementById('budgetChart').getContext('2d');
 
@@ -318,11 +321,11 @@
                 <h5 class="modal-title">Import Data PRK (Excel)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ url_for('upload_prk') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ url_for('admin.upload_prk') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="alert alert-info py-2 mb-3">
                         <small>Unduh template sebelum upload:</small> <br>
-                        <a href="{{ url_for('download_template') }}" class="fw-bold text-decoration-none"><i
+                        <a href="{{ url_for('admin.download_template') }}" class="fw-bold text-decoration-none"><i
                                 class="bi bi-download"></i> Download Template (Excel)</a>
                     </div>
 

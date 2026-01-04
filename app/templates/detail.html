@@ -85,7 +85,7 @@
                                     {% endif %}
                                     <div class="progress mt-2 mb-1 bg-white" style="height: 8px; width: 200px;">
                                         <div class="progress-bar {% if percent > 100 %}bg-danger{% elif percent > 80 %}bg-warning{% else %}bg-success{% endif %}"
-                                            role="progressbar" style="width: {{ percent }}%"
+                                            role="progressbar" style="width: {{ percent }}%;"
                                             aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                     <small class="text-secondary fw-bold" style="font-size: 0.75rem;">Realisasi: {{
@@ -183,12 +183,14 @@
                                                     {% if current_user.is_authenticated and current_user.role in
                                                     ['admin', 'super_admin'] %}
                                                     <button class="btn btn-sm btn-outline-primary"
-                                                        onclick='openEditJobModal({{ job.to_dict()|tojson }})'>
+                                                        data-job='{{ job.to_dict()|tojson }}'
+                                                        onclick='openEditJobModal(JSON.parse(this.getAttribute("data-job")))'>
                                                         Detail
                                                     </button>
                                                     {% else %} <!-- View only for non-admin -->
                                                     <button class="btn btn-sm btn-outline-info"
-                                                        onclick='openHistoryModal({{ job.to_dict()|tojson }})'>
+                                                        data-job='{{ job.to_dict()|tojson }}'
+                                                        onclick='openHistoryModal(JSON.parse(this.getAttribute("data-job")))'>
                                                         Log
                                                     </button>
                                                     {% endif %}
@@ -257,21 +259,21 @@
                             <label class="form-label">RAB (Seb. PPN)</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="rab_sebelum_ppn" class="form-control">
+                                <input type="text" name="rab_sebelum_ppn" class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Terkontrak</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="terkontrak_rp" class="form-control">
+                                <input type="text" name="terkontrak_rp" class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Terbayar</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="terbayar_rp" class="form-control">
+                                <input type="text" name="terbayar_rp" class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -353,22 +355,24 @@
                             <label class="form-label">RAB (Seb. PPN)</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="rab_sebelum_ppn" id="edit_rab_sebelum_ppn"
-                                    class="form-control">
+                                <input type="text" name="rab_sebelum_ppn" id="edit_rab_sebelum_ppn"
+                                    class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Terkontrak</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="terkontrak_rp" id="edit_terkontrak_rp" class="form-control">
+                                <input type="text" name="terkontrak_rp" id="edit_terkontrak_rp"
+                                    class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Terbayar</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="terbayar_rp" id="edit_terbayar_rp" class="form-control">
+                                <input type="text" name="terbayar_rp" id="edit_terbayar_rp"
+                                    class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -385,7 +389,8 @@
                             <label class="form-label">Est. Sisa</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
-                                <input type="number" name="est_sisa" id="edit_est_sisa" class="form-control">
+                                <input type="text" name="est_sisa" id="edit_est_sisa"
+                                    class="form-control currency-input">
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -596,6 +601,54 @@
         modal.show();
     }
 
+    function formatRupiah(angka, prefix) {
+        var number_string = angka.replace(/[^,\d]/g, '').toString(),
+            split = number_string.split(','),
+            sisa = split[0].length % 3,
+            rupiah = split[0].substr(0, sisa),
+            ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+        if (ribuan) {
+            separator = sisa ? '.' : '';
+            rupiah += separator + ribuan.join('.');
+        }
+
+        rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+        return prefix == undefined ? rupiah : (rupiah ? 'Rp ' + rupiah : '');
+    }
+
+    // Apply formatting to inputs
+    document.addEventListener('DOMContentLoaded', function () {
+        const currencyInputs = document.querySelectorAll('.currency-input');
+
+        currencyInputs.forEach(input => {
+            // Format on load (if value exists)
+            if (input.value) {
+                input.value = formatRupiah(input.value);
+            }
+
+            // Format on type
+            input.addEventListener('keyup', function (e) {
+                this.value = formatRupiah(this.value);
+            });
+        });
+
+        // Clean before Submit
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function (e) {
+                const cInputs = this.querySelectorAll('.currency-input');
+                cInputs.forEach(input => {
+                    // Remove non-digits (keep comma if float needed, but here we assume integer rupiah for now or clean dot)
+                    // Application uses float? Python code: request.form.get(..., type=float)
+                    // If we send "100.000", float("100.000") is 100.0 (wrong in US locale logic, right in ID? No, Python std is dot decimal)
+                    // So we must strip dots. "100.000" -> "100000"
+                    input.value = input.value.replace(/\./g, '');
+                });
+            });
+        });
+    });
+
     function openEditJobModal(jobData) {
         const form = document.getElementById('editJobForm');
         form.action = '/edit_job/' + jobData.id;
@@ -605,10 +658,13 @@
         document.getElementById('edit_tanggal_dibutuhkan').value = jobData.tanggal_dibutuhkan;
         document.getElementById('edit_no_vka').value = jobData.no_vka;
         document.getElementById('edit_coa').value = jobData.coa;
-        document.getElementById('edit_rab_sebelum_ppn').value = jobData.rab_sebelum_ppn;
-        document.getElementById('edit_est_sisa').value = jobData.est_sisa;
-        document.getElementById('edit_terkontrak_rp').value = jobData.terkontrak_rp;
-        document.getElementById('edit_terbayar_rp').value = jobData.terbayar_rp;
+
+        // Format Currency Values for Edit
+        document.getElementById('edit_rab_sebelum_ppn').value = formatRupiah(jobData.rab_sebelum_ppn.toString());
+        document.getElementById('edit_est_sisa').value = formatRupiah(jobData.est_sisa.toString());
+        document.getElementById('edit_terkontrak_rp').value = formatRupiah(jobData.terkontrak_rp.toString());
+        document.getElementById('edit_terbayar_rp').value = formatRupiah(jobData.terbayar_rp.toString());
+
         document.getElementById('edit_jenis_pengadaan').value = jobData.jenis_pengadaan;
 
         // Status Logic Split

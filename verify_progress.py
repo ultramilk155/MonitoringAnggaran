@@ -1,4 +1,7 @@
-from app import app, db, BudgetLine, JobDetail, JobProgress, User
+from app import create_app
+from app.models import db, BudgetLine, JobDetail, JobProgress, User
+
+app = create_app()
 
 def verify_progress():
     with app.app_context():

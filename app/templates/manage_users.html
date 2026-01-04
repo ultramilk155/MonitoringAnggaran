@@ -25,16 +25,19 @@
                         <tr>
                             <td>{{ user.username }}</td>
                             <td>
-                                <span class="badge bg-{{ 'danger' if user.role == 'super_admin' else 'primary' if user.role == 'admin' else 'secondary' }}">
+                                <span
+                                    class="badge bg-{{ 'danger' if user.role == 'super_admin' else 'primary' if user.role == 'admin' else 'secondary' }}">
                                     {{ user.role }}
                                 </span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">
+                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                    data-bs-target="#editUserModal{{ user.id }}">
                                     <i class="bi bi-pencil"></i> Edit
                                 </button>
                                 {% if user.username != 'superadmin' and user.id != current_user.id %}
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                    data-bs-target="#deleteUserModal{{ user.id }}">
                                     <i class="bi bi-trash"></i> Delete
                                 </button>
                                 {% endif %}
@@ -45,7 +48,7 @@
                         <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">
-                                    <form action="{{ url_for('edit_user', id=user.id) }}" method="POST">
+                                    <form action="{{ url_for('admin.edit_user', id=user.id) }}" method="POST">
                                         <div class="modal-header">
                                             <h5 class="modal-title">Edit User: {{ user.username }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -54,18 +57,23 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Role</label>
                                                 <select name="role" class="form-select">
-                                                    <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
-                                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                                                    <option value="super_admin" {% if user.role == 'super_admin' %}selected{% endif %}>Super Admin</option>
+                                                    <option value="viewer" {% if user.role=='viewer' %}selected{% endif
+                                                        %}>Viewer</option>
+                                                    <option value="admin" {% if user.role=='admin' %}selected{% endif
+                                                        %}>Admin</option>
+                                                    <option value="super_admin" {% if user.role=='super_admin'
+                                                        %}selected{% endif %}>Super Admin</option>
                                                 </select>
                                             </div>
                                             <div class="mb-3">
-                                                <label class="form-label">New Password (leave blank to keep current)</label>
+                                                <label class="form-label">New Password (leave blank to keep
+                                                    current)</label>
                                                 <input type="password" name="password" class="form-control">
                                             </div>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Close</button>
                                             <button type="submit" class="btn btn-primary">Save Changes</button>
                                         </div>
                                     </form>
@@ -77,16 +85,18 @@
                         <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">
-                                    <form action="{{ url_for('delete_user', id=user.id) }}" method="POST">
+                                    <form action="{{ url_for('admin.delete_user', id=user.id) }}" method="POST">
                                         <div class="modal-header">
                                             <h5 class="modal-title">Delete User</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <p>Are you sure you want to delete user <strong>{{ user.username }}</strong>?</p>
+                                            <p>Are you sure you want to delete user <strong>{{ user.username
+                                                    }}</strong>?</p>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Cancel</button>
                                             <button type="submit" class="btn btn-danger">Delete</button>
                                         </div>
                                     </form>
@@ -106,7 +116,7 @@
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('add_user') }}" method="POST">
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title">Add New User</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

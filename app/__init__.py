@@ -5,6 +5,13 @@ from app.extensions import db, login_manager, migrate
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Ensure the instance folder exists
+    import os
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
 
     # Initialize Flask extensions
     db.init_app(app)
@@ -13,7 +20,12 @@ def create_app(config_class=Config):
     
     login_manager.login_view = 'auth.login'
 
-    from app.models import User
+    from app.models import User, UserRole
+    
+    @app.context_processor
+    def inject_user_role():
+        return dict(UserRole=UserRole)
+
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))

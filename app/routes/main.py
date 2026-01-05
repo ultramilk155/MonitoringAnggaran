@@ -24,6 +24,35 @@ def index():
         query = query.filter_by(kode=kode_filter)
         
     items = query.all()
+
+    # Pre-calculate rowspans for 'Kode' grouping (contiguous items only)
+    if items:
+        current_kode = None
+        group_start_idx = 0
+        
+        # Initialize rowspan explicitly for all
+        for item in items:
+            item.rowspan = 0
+            
+        for i, item in enumerate(items):
+            if i == 0:
+                current_kode = item.kode
+                group_start_idx = 0
+                continue
+            
+            if item.kode == current_kode:
+                # Continue group
+                pass
+            else:
+                # Close previous group
+                items[group_start_idx].rowspan = i - group_start_idx
+                
+                # Start new group
+                current_kode = item.kode
+                group_start_idx = i
+        
+        # Close last group
+        items[group_start_idx].rowspan = len(items) - group_start_idx
     
     # Get Unique Codes for the selected year
     unique_codes = sorted({item.kode for item in BudgetLine.query.filter_by(tahun=selected_year).with_entities(BudgetLine.kode).distinct()})
@@ -41,8 +70,8 @@ def index():
             continue
             
         code_items = BudgetLine.query.filter_by(kode=code, tahun=selected_year).all()
-        total_pagu = sum(i.pagu_total for i in code_items)
-        total_ellipse = sum(i.ellipse_rp for i in code_items)
+        total_pagu = sum((i.pagu_total or 0) for i in code_items)
+        total_ellipse = sum((i.ellipse_rp or 0) for i in code_items)
         
         if total_pagu > 0:
             percent = (total_ellipse / total_pagu) * 100
@@ -57,10 +86,15 @@ def index():
         chart_sisa.append(sisa)
         chart_percent.append(round(percent, 2))
 
-    total_pagu_material = sum(item.pagu_material for item in items)
-    total_pagu_jasa = sum(item.pagu_jasa for item in items)
-    total_pagu_total = sum(item.pagu_total for item in items)
-    total_all_ellipse = sum(item.ellipse_rp for item in items)
+    total_pagu_material = sum((item.pagu_material or 0) for item in items)
+    total_pagu_jasa = sum((item.pagu_jasa or 0) for item in items)
+    total_pagu_total = sum((item.pagu_total or 0) for item in items)
+    total_all_ellipse = sum((item.ellipse_rp or 0) for item in items)
+    
+    if total_pagu_total > 0:
+        total_percent = (total_all_ellipse / total_pagu_total) * 100
+    else:
+        total_percent = 0
     
     return render_template('index.html', 
                            items=items, 
@@ -75,6 +109,7 @@ def index():
                            chart_sisa=chart_sisa,
                            chart_percent=chart_percent,
                            total_all_ellipse=total_all_ellipse,
+                           total_percent=total_percent,
                            selected_year=selected_year)
 
 @bp.route('/set_year/<int:year>')
@@ -84,11 +119,14 @@ def set_year(year):
 
 @bp.route('/detail/<kode>')
 def detail(kode):
-    items = BudgetLine.query.filter_by(kode=kode).all()
+    current_year = datetime.datetime.now().year
+    selected_year = session.get('year', current_year)
     
-    total_pagu_material = sum(item.pagu_material for item in items)
-    total_pagu_jasa = sum(item.pagu_jasa for item in items)
-    total_pagu_total = sum(item.pagu_total for item in items)
+    items = BudgetLine.query.filter_by(kode=kode, tahun=selected_year).all()
+    
+    total_pagu_material = sum((item.pagu_material or 0) for item in items)
+    total_pagu_jasa = sum((item.pagu_jasa or 0) for item in items)
+    total_pagu_total = sum((item.pagu_total or 0) for item in items)
     
     return render_template('detail.html', 
                            items=items, 
@@ -270,9 +308,13 @@ def monitoring():
         'Lakdan': 0
     }
     
-    # Get all distinct PICs
-    all_jobs = JobDetail.query.all()
-    unique_pics = sorted({j.pic for j in all_jobs if j.pic})
+    # Get all distinct PICs from current year's budget lines only
+    unique_pics = set()
+    for bl in budget_lines:
+        for job in bl.jobs:
+            if job.pic:
+                unique_pics.add(job.pic)
+    unique_pics = sorted(unique_pics)
     
     procurement_jobs = []
     execution_jobs = []
@@ -280,7 +322,7 @@ def monitoring():
     procurement_statuses = ['User', 'Rendan', 'Lakdan']
     
     for code in unique_codes:
-        items = BudgetLine.query.filter_by(kode=code).all()
+        items = BudgetLine.query.filter_by(kode=code, tahun=selected_year).all()
         for item in items:
             jobs = item.jobs
             

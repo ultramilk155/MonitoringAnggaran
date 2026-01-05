@@ -37,15 +37,10 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.monitoring') }}">Monitoring Status</a>
                     </li>
-                    {% if current_user.has_permission('manage_users') %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.list_users') }}">Manage Users</a>
-                    </li>
-                    {% endif %}
-                    
+
                     {% if current_user.role == UserRole.SUPER_ADMIN %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.manage_permissions') }}">Permissions</a>
+                        <a class="nav-link" href="{{ url_for('admin.dashboard', tab='permissions') }}">Permissions</a>
                     </li>
                     {% endif %}
                     <li class="nav-item dropdown">
@@ -54,11 +49,8 @@
                             Tahun: {{ session.get('year', 2026) }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="yearDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('main.set_year', year=2024) }}">2024</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('main.set_year', year=2025) }}">2025</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('main.set_year', year=2026) }}">2026</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.set_year', year=2027) }}">2027</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.set_year', year=2028) }}">2028</a></li>
                         </ul>
                     </li>
                     {% endif %}

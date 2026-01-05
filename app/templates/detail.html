@@ -43,22 +43,24 @@
         <h5 class="mb-0 fw-bold text-white">Rincian Item</h5>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive" style="max-height: 75vh; overflow-y: auto;">
             <table class="table table-borderless mb-0" style="border-collapse: separate; border-spacing: 0;">
-                <thead class="text-white bg-transparent" style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                <thead class="text-info text-uppercase small fw-bold"
+                    style="position: sticky; top: 0; z-index: 1020; background-color: #1a202c; border-bottom: 2px solid var(--bs-info); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);">
                     <tr>
-                        <th rowspan="2" class="align-middle text-center">No PRK</th>
-                        <th rowspan="2" class="align-middle">Deskripsi</th>
-                        <th colspan="3" class="text-center">Pagu Anggaran</th>
-                        <th colspan="3" class="text-center">Realisasi</th>
-                    </tr>
-                    <tr>
-                        <th class="text-end">Material</th>
-                        <th class="text-end">Jasa</th>
-                        <th class="text-end">Total</th>
-                        <th class="text-end">Terkontrak</th>
-                        <th class="text-end">Terbayar</th>
-                        <th class="text-end">Sisa (dari RAB)</th>
+                        <th class="align-middle text-center py-3">No PRK</th>
+                        <th class="align-middle py-3">Deskripsi</th>
+                        <th class="text-end py-3">Pagu Material</th>
+                        <th class="text-end py-3">Pagu Jasa</th>
+                        <th class="text-end py-3">Total Pagu</th>
+                        <th class="text-end py-3" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">
+                            Realisasi (Ellipse)
+                        </th>
+                        <th class="text-end py-3" style="background-color: rgba(25, 135, 84, 0.1); color: #198754;">%
+                        </th>
+                        <th class="text-end py-3">Terkontrak</th>
+                        <th class="text-end py-3">Terbayar</th>
+                        <th class="text-end py-3">Sisa (dari RAB)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,119 +95,124 @@
                                 </div>
                                 <div class="ms-2">
                                     <button class="btn btn-sm btn-primary shadow-sm" type="button"
-                                        data-bs-toggle="collapse" data-bs-target="#jobs-{{ item.id }}"
+                                        data-bs-toggle="collapse" data-bs-target=".jobs-{{ item.id }}"
                                         aria-expanded="false">
-                                        Rincian Pekerjaan
-                                        {% if item.jobs|length > 0 %}
-                                        <span class="badge bg-white text-primary ms-1 shadow-sm">{{ item.jobs|length
-                                            }}</span>
-                                        {% endif %}
+                                        Rincian ({{ item.jobs|length }})
                                     </button>
-                                    {% if current_user.has_permission('add_job') %}
-                                    <button class="btn btn-warning shadow-sm ms-2 fw-bold" type="button"
-                                        onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')"
-                                        style="box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);">
-                                        <i class="bi bi-plus-lg"></i> Tambah
-                                    </button>
-                                    {% endif %}
                                 </div>
                             </div>
+                        </td>
 
                         <td class="text-end fw-bold text-white">Rp {{ item.pagu_material|ribuan }}</td>
                         <td class="text-end fw-bold text-white">Rp {{ item.pagu_jasa|ribuan }}</td>
                         <td class="text-end fw-extrabold text-white">Rp {{ item.pagu_total|ribuan }}</td>
+
+                        <!-- Ellipse Data -->
+                        <td class="text-end fw-bold text-success" style="background-color: rgba(25, 135, 84, 0.1);">Rp
+                            {{ item.ellipse_rp|ribuan }}</td>
+                        <td class="text-end fw-bold text-success" style="background-color: rgba(25, 135, 84, 0.1);">
+                            {% if item.pagu_total > 0 %}
+                            {{ ((item.ellipse_rp / item.pagu_total) * 100)|round(1) }}%
+                            {% else %}
+                            0%
+                            {% endif %}
+                        </td>
+
                         <td class="text-end text-white">Rp {{ item.terkontrak_rp|ribuan }}</td>
                         <td class="text-end text-white">Rp {{ item.terbayar_rp|ribuan }}</td>
                         <td class="text-end fw-bold text-white">Rp {{ (item.pagu_total - item.usulan_rab_rp)|ribuan }}
                         </td>
                     </tr>
-                    <tr class="collapse show" id="jobs-{{ item.id }}">
-                        <td colspan="12" class="p-0 border-0">
-                            <div
-                                class="card card-body bg-transparent rounded-0 border-0 p-3 shadow-sm border-start border-5 border-info">
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                                    <h6 class="fw-bold mb-0 text-secondary">
-                                        <i class="bi bi-arrow-return-right me-2"></i>Daftar Pekerjaan ({{
-                                        item.jobs|length }})
-                                    </h6>
-                                    {% if current_user.has_permission('add_job') %}
-                                    <button class="btn btn-sm btn-outline-warning"
-                                        onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')">
-                                        <i class="bi bi-plus-circle me-1"></i> Tambah Item
-                                    </button>
-                                    {% endif %}
-                                </div>
-                                {% if item.jobs %}
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-dark table-bordered bg-transparent mb-0"
-                                        style="font-size: 0.85em; --bs-table-bg: transparent; --bs-table-color: var(--text-main);">
-                                        <thead class="align-middle"
-                                            style="border-bottom: 2px solid rgba(255,255,255,0.1);">
-                                            <tr>
-                                                <th>Nama Pekerjaan</th>
-                                                <th>Tanggal TOR</th>
-                                                <th>Tgl Dibutuhkan</th>
-                                                <!-- Fields HIDDEN from table to reduce clutter: No VKA, COA -->
-                                                <th class="text-end">RAB (Seb. PPN)</th>
-                                                <th class="text-end">Terkontrak</th>
-                                                <th class="text-end">Terbayar</th>
 
-                                                <th class="text-center">Status</th>
-                                                <th class="text-center">Jenis</th>
-                                                <th class="text-center" style="width: 100px;">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for job in item.jobs %}
-                                            <tr>
-                                                <td>{{ job.nama_pekerjaan }}</td>
-                                                <td>{{ job.tanggal_tor }}</td>
-                                                <td>{{ job.tanggal_dibutuhkan }}</td>
-                                                <td class="text-end">Rp {{ job.rab_sebelum_ppn|ribuan }}</td>
-                                                <td class="text-end">Rp {{ job.terkontrak_rp|ribuan }}</td>
-                                                <td class="text-end">Rp {{ job.terbayar_rp|ribuan }}</td>
+                    <!-- Child Rows (Jobs) -->
+                    {% if item.jobs %}
+                    {% for job in item.jobs %}
+                    <tr class="collapse show jobs-{{ item.id }}" style="background-color: rgba(0,0,0,0.2);">
+                        <!-- Indent/Tree Marker -->
+                        <td class="text-end align-top pt-3">
+                            <i class="bi bi-arrow-return-right text-secondary"></i>
+                        </td>
 
-                                                <td class="text-center">
-                                                    <span class="badge 
-                                                        {% if job.status == 'User' %}bg-primary
-                                                        {% elif job.status == 'Rendan' %}bg-warning text-dark
-                                                        {% elif job.status == 'Lakdan' %}bg-success
-                                                        {% elif job.status == 'Proses Pembayaran' or job.status == 'Terbayar' or job.status == 'Selesai' %}bg-dark
-                                                        {% else %}bg-info text-dark{% endif %}">
-                                                        {{ job.status or 'User' }}
-                                                    </span>
-                                                </td>
-                                                <td class="text-center">{{ job.jenis_pengadaan }}</td>
+                        <!-- Job Description & Meta -->
+                        <td class="align-middle">
+                            <div class="fw-bold text-info mb-1">{{ job.nama_pekerjaan }}</div>
+                            <div class="d-flex flex-wrap gap-2" style="font-size: 0.8em;">
+                                {% if job.tanggal_tor %}
+                                <span class="badge bg-secondary text-light border border-secondary">
+                                    TOR: {{ job.tanggal_tor }}
+                                </span>
+                                {% endif %}
 
-                                                <td class="text-center">
-                                                    {% if current_user.has_permission('edit_job') %}
-                                                    <button class="btn btn-sm btn-outline-primary"
-                                                        data-job='{{ job.to_dict()|tojson }}'
-                                                        onclick='openEditJobModal(JSON.parse(this.getAttribute("data-job")))'>
-                                                        Detail
-                                                    </button>
-                                                    {% else %} <!-- View only for non-admin -->
-                                                    <button class="btn btn-sm btn-outline-info"
-                                                        data-job='{{ job.to_dict()|tojson }}'
-                                                        onclick='openHistoryModal(JSON.parse(this.getAttribute("data-job")))'>
-                                                        Log
-                                                    </button>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% else %}
-                                            <tr>
-                                                <td colspan="12" class="text-center text-muted fst-italic">Belum ada
-                                                    rincian pekerjaan.</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <span class="badge 
+                                        {% if job.status == 'User' %}bg-primary
+                                        {% elif job.status == 'Rendan' %}bg-warning text-dark
+                                        {% elif job.status == 'Lakdan' %}bg-success
+                                        {% elif job.status == 'Proses Pembayaran' or job.status == 'Terbayar' or job.status == 'Selesai' %}bg-dark
+                                        {% else %}bg-info text-dark{% endif %}">
+                                    {{ job.status or 'User' }}
+                                </span>
+
+                                {% if job.jenis_pengadaan %}
+                                <span class="badge bg-dark border border-secondary">{{ job.jenis_pengadaan }}</span>
                                 {% endif %}
                             </div>
                         </td>
+
+                        <!-- Empty COls for Pagu Mat/Jasa -->
+                        <td></td>
+                        <td></td>
+
+                        <!-- RAB Aligned with Pagu Total -->
+                        <td class="text-end text-info align-middle">Rp {{ job.rab_sebelum_ppn|ribuan }}</td>
+
+                        <!-- Empty Ellipse Cols -->
+                        <td style="background-color: rgba(25, 135, 84, 0.05);"></td>
+                        <td style="background-color: rgba(25, 135, 84, 0.05);"></td>
+
+                        <!-- Terkontrak Aligned -->
+                        <td class="text-end text-light align-middle">Rp {{ job.terkontrak_rp|ribuan }}</td>
+
+                        <!-- Terbayar Aligned -->
+                        <td class="text-end text-light align-middle">Rp {{ job.terbayar_rp|ribuan }}</td>
+
+                        <!-- Actions Aligned with Sisa -->
+                        <td class="text-center align-middle">
+                            {% if current_user.has_permission('edit_job') %}
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2"
+                                data-job='{{ job.to_dict()|tojson }}'
+                                onclick='openEditJobModal(JSON.parse(this.getAttribute("data-job")))'>
+                                Detail
+                            </button>
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-info py-0 px-2" data-job='{{ job.to_dict()|tojson }}'
+                                onclick='openHistoryModal(JSON.parse(this.getAttribute("data-job")))'>
+                                Log
+                            </button>
+                            {% endif %}
+                        </td>
                     </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr class="collapse show jobs-{{ item.id }}">
+                        <td colspan="12" class="text-center text-muted fst-italic py-2"
+                            style="background-color: rgba(0,0,0,0.1);">
+                            <small>Belum ada rincian pekerjaan.</small>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Add Item Row -->
+                    {% if current_user.has_permission('add_job') %}
+                    <tr class="collapse show jobs-{{ item.id }}">
+                        <td colspan="2" class="text-end py-1 pe-4" style="background-color: rgba(0,0,0,0.1);">
+                            <a href="#" class="text-decoration-none text-warning fw-bold small"
+                                onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')">
+                                <i class="bi bi-plus-circle me-1"></i> Tambah Item
+                            </a>
+                        </td>
+                        <td colspan="8" style="background-color: rgba(0,0,0,0.1);"></td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

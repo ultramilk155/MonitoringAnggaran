@@ -4,7 +4,11 @@
 
 
 {% block content %}
-<div class="d-flex justify-content-end mb-2">
+</div>
+<div class="d-flex justify-content-end mb-2 align-items-center">
+    <button id="syncEllipseBtn" class="btn btn-sm btn-outline-primary me-2" onclick="syncEllipse()">
+        <i class="bi bi-arrow-repeat"></i> Sync Realisasi
+    </button>
     <span id="ellipseStatus" class="badge bg-secondary">
         <i class="bi bi-database me-1"></i> Ellipse: Checking...
     </span>
@@ -32,6 +36,9 @@
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                             Total Realisasi (Ellipse)</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ total_all_ellipse|ribuan }}</div>
+                        <div class="small mt-1 text-success fw-bold">
+                            <i class="bi bi-graph-up-arrow"></i> {{ total_percent|round(2) }}% dari Pagu
+                        </div>
                     </div>
                 </div>
             </div>
@@ -125,6 +132,7 @@
                             <th colspan="3" class="text-center">Pagu</th>
                             <th colspan="4" class="text-center">Realisasi</th>
                             <th rowspan="2" class="text-center align-middle">Aksi</th>
+
                         </tr>
                         <tr>
                             <th class="text-end">Material</th>
@@ -151,8 +159,11 @@
                             </td>
                             {% endif %}
                             <td class="text-center row-number">{{ loop.index }}</td>
-                            <td class="text-center">
-                                <span class="badge bg-info text-dark">{{ item.kode }}</span>
+                            <td class="text-center align-middle">
+                                <a href="{{ url_for('main.detail', kode=item.kode) }}" class="text-decoration-none">
+                                    <span class="badge bg-info text-dark shadow-sm"
+                                        style="font-size: 1.1rem; padding: 0.5em 0.8em;">{{ item.kode }}</span>
+                                </a>
                             </td>
                             <td class="text-nowrap fw-bold">{{ item.no_prk }}</td>
                             <td class="text-truncate" style="max-width: 250px;" title="{{ item.deskripsi }}">{{
@@ -167,12 +178,30 @@
                             <td class="text-end text-muted">Rp {{ item.usulan_rab_rp|ribuan }}</td>
                             <td class="text-end text-muted">Rp {{ item.terkontrak_rp|ribuan }}</td>
                             <td class="text-end text-muted">Rp {{ item.terbayar_rp|ribuan }}</td>
-                            <td class="text-end text-muted">Rp {{ item.ellipse_rp|ribuan }}</td>
-
-                            <td class="text-center">
-                                <a href="{{ url_for('main.detail', kode=item.kode) }}"
-                                    class="btn btn-sm btn-primary">Detail</a>
+                            <td class="text-end text-muted">
+                                <div>Rp {{ item.ellipse_rp|ribuan }}</div>
+                                {% if item.pagu_total > 0 %}
+                                <div class="badge bg-success bg-opacity-10 text-success fw-bold mt-1 px-2 border border-success"
+                                    style="font-size: 0.85em;">
+                                    {{ ((item.ellipse_rp or 0) / item.pagu_total * 100)|round(1) }}%
+                                </div>
+                                {% else %}
+                                <div class="badge bg-secondary bg-opacity-10 text-secondary mt-1 px-2"
+                                    style="font-size: 0.85em;">0%</div>
+                                {% endif %}
                             </td>
+
+                            {% if item.rowspan > 0 %}
+                            <td class="text-center align-middle" rowspan="{{ item.rowspan }}"
+                                style="border-left: 1px solid #dee2e6;">
+                                <a href="{{ url_for('main.detail', kode=item.kode) }}"
+                                    class="btn btn-sm btn-primary shadow-sm" style="font-size: 0.8rem;">
+                                    Detail
+                                </a>
+                            </td>
+                            {% endif %}
+
+
                         </tr>
                         {% else %}
                         <tr>
@@ -321,10 +350,19 @@
                         },
                         footer: function (tooltipItems) {
                             let total = 0;
+                            let realisasi = 0;
+
                             tooltipItems.forEach(function (tooltipItem) {
                                 total += tooltipItem.parsed.x;
+                                if (tooltipItem.datasetIndex === 0) { // Index 0 is Realisasi
+                                    realisasi = tooltipItem.parsed.x;
+                                }
                             });
-                            return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID');
+
+                            let percent = (total > 0) ? (realisasi / total) * 100 : 0;
+
+                            return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID') + '\n' +
+                                'Realisasi: ' + percent.toFixed(2).replace('.', ',') + '%';
                         }
                     }
                 },
@@ -431,5 +469,53 @@
             console.error('Failed to check ellipse status', err);
             logMessage('ERROR: Network/API failure to check status.', 'error');
         });
+
+    function syncEllipse() {
+        const btn = document.getElementById('syncEllipseBtn');
+        const originalText = btn.innerHTML;
+
+        if (!confirm('Update data realisasi dari Ellipse untuk semua PRK tahun ini?')) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Syncing...';
+        logMessage('Starting Ellipse Sync...', 'info');
+
+        fetch('{{ url_for("admin.sync_realization") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    logMessage('SYNC COMPLETE: ' + data.message, 'success');
+                    alert(data.message);
+                    location.reload(); // Reload to show new values
+                } else {
+                    logMessage('SYNC FAILED: ' + data.message, 'error');
+                    alert('Gagal Sync: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                logMessage('SYNC ERROR: Network failure', 'error');
+                alert('Terjadi kesalahan koneksi.');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+    }
 </script>
+<style>
+    @keyframes spin {
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .spin {
+        display: inline-block;
+        animation: spin 1s linear infinite;
+    }
+</style>
 {% endblock %}

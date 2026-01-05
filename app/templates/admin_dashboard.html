@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Styles for Permission Tab */
+    .role-sidebar .list-group-item {
+        border-left: 4px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .role-sidebar .list-group-item.active {
+        background: linear-gradient(90deg, rgba(0, 123, 255, 0.1) 0%, transparent 100%);
+        border-left-color: #0d6efd;
+        color: inherit;
+    }
+
+    .role-sidebar .list-group-item:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .permission-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px 16px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .permission-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .permission-card.allowed {
+        background: rgba(40, 167, 69, 0.15);
+        border-color: rgba(40, 167, 69, 0.4);
+    }
+
+    .permission-card .perm-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #fff;
+    }
+
+    .permission-card .perm-desc {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 4px;
+    }
+
+    .category-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+    }
+
+    /* General Dashboard Styles */
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        cursor: pointer;
+    }
+
+    .nav-tabs .nav-link.active {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+</style>
+
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Admin Dashboard</h2>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="users-tab" data-bs-toggle="tab"
+                data-bs-target="#users" type="button" role="tab" aria-controls="users"
+                aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}">
+                <i class="bi bi-people me-2"></i>User Management
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'permissions' %}active{% endif %}" id="permissions-tab"
+                data-bs-toggle="tab" data-bs-target="#permissions" type="button" role="tab" aria-controls="permissions"
+                aria-selected="{{ 'true' if active_tab == 'permissions' else 'false' }}">
+                <i class="bi bi-shield-lock me-2"></i>Roles & Permissions
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+
+        <!-- ==================== USERS TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="users" role="tabpanel"
+            aria-labelledby="users-tab">
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="bi bi-person-plus"></i> Add User
+                </button>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'danger' if user.role == 'super_admin' else 'primary' if user.role == 'admin' else 'secondary' }}">
+                                            {{ user.role }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                            data-bs-target="#editUserModal{{ user.id }}">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                        {% if user.username != 'superadmin' and user.id != current_user.id %}
+                                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                            data-bs-target="#deleteUserModal{{ user.id }}">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Edit Modal (Inside Loop) -->
+                                <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form action="{{ url_for('admin.edit_user', id=user.id) }}" method="POST">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Edit User: {{ user.username }}</h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Role</label>
+                                                        <select name="role" class="form-select">
+                                                            <!-- Roles from DB + standard hardcoded for fallback security -->
+                                                            {% for r in roles %}
+                                                            <option value="{{ r.name }}" {% if user.role==r.name
+                                                                %}selected{% endif %}>{{ r.name | replace('_', ' ') |
+                                                                title }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">New Password (leave blank to keep
+                                                            current)</label>
+                                                        <input type="password" name="password" class="form-control">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Close</button>
+                                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Delete Modal (Inside Loop) -->
+                                <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form action="{{ url_for('admin.delete_user', id=user.id) }}" method="POST">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete User</h5>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete user <strong>{{ user.username
+                                                            }}</strong>?</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== PERMISSIONS TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'permissions' %}show active{% endif %}" id="permissions"
+            role="tabpanel" aria-labelledby="permissions-tab">
+            <div class="header-section d-flex justify-content-between align-items-center text-white">
+                <div>
+                    <h4 class="mb-1 text-white"><i class="bi bi-shield-lock me-2"></i>Manajemen Role & Permissions</h4>
+                    <small style="color: rgba(255,255,255,0.7)">Kelola role dan atur permissions untuk setiap
+                        role</small>
+                </div>
+                <!-- Buttons for Role/Permission -->
+                <div>
+                    <button class="btn btn-outline-light me-2" data-bs-toggle="modal"
+                        data-bs-target="#addPermissionModal">
+                        <i class="bi bi-key me-1"></i> Add Permission
+                    </button>
+                    <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                        <i class="bi bi-plus-circle me-1"></i> Buat Role Baru
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Sidebar: Daftar Role -->
+                <div class="col-md-3">
+                    <div class="card bg-dark border-0 shadow">
+                        <div class="card-header border-bottom border-secondary py-3">
+                            <h6 class="mb-0 text-white"><i class="bi bi-people-fill me-2"></i>Daftar Role</h6>
+                        </div>
+                        <div class="list-group list-group-flush role-sidebar">
+                            {% for role in roles %}
+                            <a href="{{ url_for('admin.dashboard', tab='permissions', role=role.name) }}"
+                                class="list-group-item list-group-item-action bg-transparent border-0 py-3 text-white {% if role.name == selected_role %}active{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold text-white">{{ role.name | replace('_', ' ') | title }}
+                                        </div>
+                                        <small class="text-secondary">{{ role.permission_count() }} permissions</small>
+                                    </div>
+                                    {% if role.is_system %}
+                                    <span class="badge bg-secondary bg-opacity-50">System</span>
+                                    {% else %}
+                                    <form action="{{ url_for('admin.delete_role', id=role.id) }}" method="POST"
+                                        onsubmit="return confirm('Hapus role ini?');" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content: Permissions -->
+                <div class="col-md-9">
+                    <div class="card bg-dark border-0 shadow">
+                        <div class="card-header border-bottom border-secondary py-3 text-white">
+                            <div>
+                                <h5 class="mb-0">Permissions untuk {{ selected_role | replace('_', ' ') | title }}</h5>
+                                {% if is_super_admin %}
+                                <small class="text-success"><i class="bi bi-check-circle me-1"></i>Full system
+                                    access</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body p-4">
+                            <form action="{{ url_for('admin.update_role_permissions', role_name=selected_role) }}"
+                                method="POST">
+                                {% for category, perms in categories.items() %}
+                                <div class="mb-4">
+                                    <div class="category-title">
+                                        <i class="bi bi-folder2 me-1"></i> {{ category | upper }}
+                                    </div>
+                                    <div class="row g-3">
+                                        {% for item in perms %}
+                                        <div class="col-lg-3 col-md-4 col-sm-6">
+                                            <label
+                                                class="permission-card d-block {% if item.is_allowed %}allowed{% endif %}"
+                                                for="perm_{{ item.permission.id }}">
+                                                <div class="d-flex align-items-start">
+                                                    <input type="checkbox" class="form-check-input me-2 mt-1"
+                                                        name="perm_{{ item.permission.id }}"
+                                                        id="perm_{{ item.permission.id }}" {% if item.is_allowed
+                                                        %}checked{% endif %} {% if is_super_admin %}disabled{% endif %}>
+                                                    <div>
+                                                        <div class="perm-title">{{ item.permission.name | replace('_', '
+                                                            ') | title }}</div>
+                                                        {% if item.permission.description %}
+                                                        <div class="perm-desc">{{ item.permission.description }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-5">
+                                    <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                    <p class="text-muted mt-3 text-white">Belum ada permission. Klik "Add Permission"
+                                        untuk menambahkan.</p>
+                                </div>
+                                {% endfor %}
+
+                                {% if not is_super_admin and categories %}
+                                <div class="mt-4 pt-3 border-top border-secondary">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-check-lg me-1"></i> Simpan Perubahan
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select">
+                            {% for r in roles %}
+                            <option value="{{ r.name }}">{{ r.name | replace('_', ' ') | title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Role Modal -->
+<div class="modal fade" id="addRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <form action="{{ url_for('admin.add_role') }}" method="POST">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-white"><i class="bi bi-person-plus me-2"></i>Buat Role Baru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Nama Role</label>
+                        <input type="text" name="name" class="form-control bg-dark text-white border-secondary" required
+                            placeholder="contoh: editor, manager">
+                        <small class="text-muted">Gunakan huruf kecil, tanpa spasi</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Deskripsi (opsional)</label>
+                        <input type="text" name="description" class="form-control bg-dark text-white border-secondary"
+                            placeholder="Deskripsi singkat">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Buat Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Permission Modal -->
+<div class="modal fade" id="addPermissionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <form action="{{ url_for('admin.add_permission') }}" method="POST">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-white"><i class="bi bi-key me-2"></i>Tambah Permission</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Nama Permission</label>
+                        <input type="text" name="name" class="form-control bg-dark text-white border-secondary" required
+                            placeholder="contoh: edit_reports">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Deskripsi</label>
+                        <input type="text" name="description" class="form-control bg-dark text-white border-secondary"
+                            placeholder="Deskripsi singkat">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Kategori</label>
+                        <select name="category" class="form-select bg-dark text-white border-secondary">
+                            <option value="general">General</option>
+                            <option value="users">Users</option>
+                            <option value="budget">Budget</option>
+                            <option value="jobs">Jobs</option>
+                            <option value="reports">Reports</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Tambah</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

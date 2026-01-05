@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models import BudgetLine, JobDetail, JobProgress, User
+from app.models import BudgetLine, JobDetail, JobProgress, User, UserRole
+from app.decorators import permission_required
 import datetime
 import pandas as pd
 from io import BytesIO
@@ -98,9 +99,8 @@ def detail(kode):
 
 @bp.route('/add_job/<int:budget_line_id>', methods=['POST'])
 @login_required
+@permission_required('add_job')
 def add_job(budget_line_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     budget_line = BudgetLine.query.get_or_404(budget_line_id)
     
@@ -164,9 +164,8 @@ def update_budget_line_totals(budget_line):
 
 @bp.route('/add_progress/<int:job_id>', methods=['POST'])
 @login_required
+@permission_required('add_progress')
 def add_progress(job_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     job = JobDetail.query.get_or_404(job_id)
     
@@ -191,9 +190,8 @@ def add_progress(job_id):
 
 @bp.route('/edit_progress/<int:log_id>', methods=['POST'])
 @login_required
+@permission_required('edit_progress')
 def edit_progress(log_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     log = JobProgress.query.get_or_404(log_id)
     
@@ -210,9 +208,8 @@ def edit_progress(log_id):
 
 @bp.route('/update_job_status/<int:job_id>', methods=['POST'])
 @login_required
+@permission_required('update_job_status')
 def update_job_status(job_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     job = JobDetail.query.get_or_404(job_id)
     new_status = request.form.get('status')
@@ -232,9 +229,8 @@ def update_job_status(job_id):
 
 @bp.route('/delete_job/<int:job_id>', methods=['POST'])
 @login_required
+@permission_required('delete_job')
 def delete_job(job_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     job = JobDetail.query.get_or_404(job_id)
     budget_line = job.budget_line
@@ -341,9 +337,8 @@ def monitoring():
 
 @bp.route('/edit_job/<int:job_id>', methods=['POST'])
 @login_required
+@permission_required('edit_job')
 def edit_job(job_id):
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
     
     job = JobDetail.query.get_or_404(job_id)
     

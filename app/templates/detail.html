@@ -101,8 +101,7 @@
                                             }}</span>
                                         {% endif %}
                                     </button>
-                                    {% if current_user.is_authenticated and current_user.role in ['admin',
-                                    'super_admin'] %}
+                                    {% if current_user.has_permission('add_job') %}
                                     <button class="btn btn-warning shadow-sm ms-2 fw-bold" type="button"
                                         onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')"
                                         style="box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);">
@@ -129,8 +128,7 @@
                                         <i class="bi bi-arrow-return-right me-2"></i>Daftar Pekerjaan ({{
                                         item.jobs|length }})
                                     </h6>
-                                    {% if current_user.is_authenticated and current_user.role in ['admin',
-                                    'super_admin'] %}
+                                    {% if current_user.has_permission('add_job') %}
                                     <button class="btn btn-sm btn-outline-warning"
                                         onclick="openAddJobModal('{{ item.id }}', '{{ item.no_prk }}')">
                                         <i class="bi bi-plus-circle me-1"></i> Tambah Item
@@ -180,8 +178,7 @@
                                                 <td class="text-center">{{ job.jenis_pengadaan }}</td>
 
                                                 <td class="text-center">
-                                                    {% if current_user.is_authenticated and current_user.role in
-                                                    ['admin', 'super_admin'] %}
+                                                    {% if current_user.has_permission('edit_job') %}
                                                     <button class="btn btn-sm btn-outline-primary"
                                                         data-job='{{ job.to_dict()|tojson }}'
                                                         onclick='openEditJobModal(JSON.parse(this.getAttribute("data-job")))'>
@@ -456,7 +453,7 @@
             <div class="modal-body">
                 <h6 id="historyJobTitle" class="fw-bold mb-3"></h6>
 
-                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                {% if current_user.has_permission('add_progress') %}
                 <div class="card mb-4 bg-light border-0">
                     <div class="card-body">
                         <h6 class="card-title">Tambah Catatan</h6>

@@ -3,7 +3,8 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from app.extensions import db
-from app.models import BudgetLine, JobDetail, User
+from app.models import BudgetLine, JobDetail, User, UserRole, Permission, RolePermission, Role
+from app.decorators import role_required, permission_required
 import pandas as pd
 import datetime
 from io import BytesIO
@@ -12,17 +13,15 @@ bp = Blueprint('admin', __name__)
 
 @bp.route('/users')
 @login_required
+@permission_required('manage_users')
 def list_users():
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
     users = User.query.all()
     return render_template('manage_users.html', users=users)
 
 @bp.route('/users/add', methods=['POST'])
 @login_required
+@permission_required('manage_users')
 def add_user():
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
         
     username = request.form.get('username')
     password = request.form.get('password')
@@ -40,9 +39,8 @@ def add_user():
 
 @bp.route('/users/edit/<int:id>', methods=['POST'])
 @login_required
+@permission_required('manage_users')
 def edit_user(id):
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
         
     user = User.query.get_or_404(id)
     user.role = request.form.get('role')
@@ -57,9 +55,8 @@ def edit_user(id):
 
 @bp.route('/users/delete/<int:id>', methods=['POST'])
 @login_required
+@permission_required('manage_users')
 def delete_user(id):
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
         
     user = User.query.get_or_404(id)
     if user.username == 'superadmin':
@@ -73,9 +70,8 @@ def delete_user(id):
 
 @bp.route('/upload_prk', methods=['POST'])
 @login_required
+@permission_required('upload_prk')
 def upload_prk():
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
     
     if 'file' not in request.files:
         flash('No file part')
@@ -127,9 +123,8 @@ def upload_prk():
 
 @bp.route('/download_template')
 @login_required
+@permission_required('upload_prk')
 def download_template():
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
         
     data = {
         'Kode': ['A.1', 'B.2'],
@@ -149,9 +144,8 @@ def download_template():
 
 @bp.route('/delete_bulk_budget_lines', methods=['POST'])
 @login_required
+@permission_required('delete_budget_line')
 def delete_bulk_budget_lines():
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
     
     ids = request.form.getlist('ids')
     if not ids:
@@ -172,9 +166,8 @@ def delete_bulk_budget_lines():
 
 @bp.route('/delete_budget_line/<int:id>', methods=['POST'])
 @login_required
+@permission_required('delete_budget_line')
 def delete_budget_line(id):
-    if current_user.role != 'super_admin':
-        return "Unauthorized", 403
     
     bl = BudgetLine.query.get_or_404(id)
     JobDetail.query.filter_by(budget_line_id=id).delete()
@@ -186,9 +179,8 @@ def delete_budget_line(id):
 
 @bp.route('/reorder_budget_lines', methods=['POST'])
 @login_required
+@permission_required('reorder_budget_lines')
 def reorder_budget_lines():
-    if current_user.role not in ['admin', 'super_admin']:
-        return "Unauthorized", 403
         
     order_data = request.json.get('order', [])
     
@@ -207,3 +199,171 @@ def reorder_budget_lines():
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ==================== PERMISSION MANAGEMENT ====================
+
+@bp.route('/permissions')
+@bp.route('/permissions/<selected_role>')
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def manage_permissions(selected_role=None):
+    """Display permission matrix with sidebar layout."""
+    # Get all roles from database
+    db_roles = Role.query.all()
+    
+    # If no roles in DB, seed defaults
+    if not db_roles:
+        for role_name in UserRole.default_roles():
+            role = Role(name=role_name, is_system=True, 
+                       description='System role' if role_name == UserRole.SUPER_ADMIN else '')
+            db.session.add(role)
+        db.session.commit()
+        db_roles = Role.query.all()
+    
+    # Sort by hierarchy: super_admin > admin > viewer > custom roles
+    role_order = {UserRole.SUPER_ADMIN: 0, UserRole.ADMIN: 1, UserRole.VIEWER: 2}
+    db_roles = sorted(db_roles, key=lambda r: role_order.get(r.name, 99))
+    
+    # Select first role if none specified
+    if not selected_role:
+        selected_role = db_roles[0].name if db_roles else UserRole.SUPER_ADMIN
+    
+    # Get permissions grouped by category
+    permissions = Permission.query.order_by(Permission.category, Permission.name).all()
+    categories = {}
+    for perm in permissions:
+        if perm.category not in categories:
+            categories[perm.category] = []
+        # Check if this role has the permission
+        is_allowed = False
+        if selected_role == UserRole.SUPER_ADMIN:
+            is_allowed = True  # Super admin has all
+        else:
+            rp = RolePermission.query.filter_by(role=selected_role, permission_id=perm.id).first()
+            is_allowed = rp.is_allowed if rp else False
+        categories[perm.category].append({
+            'permission': perm,
+            'is_allowed': is_allowed
+        })
+    
+    return render_template('manage_permissions.html',
+                          roles=db_roles,
+                          selected_role=selected_role,
+                          categories=categories,
+                          is_super_admin=(selected_role == UserRole.SUPER_ADMIN))
+
+@bp.route('/permissions/update/<role_name>', methods=['POST'])
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def update_role_permissions(role_name):
+    """Update permissions for a specific role."""
+    if role_name == UserRole.SUPER_ADMIN:
+        flash('Super Admin permissions cannot be modified.', 'warning')
+        return redirect(url_for('admin.manage_permissions', selected_role=role_name))
+    
+    try:
+        permissions = Permission.query.all()
+        for perm in permissions:
+            checkbox_name = f"perm_{perm.id}"
+            is_allowed = checkbox_name in request.form
+            
+            role_perm = RolePermission.query.filter_by(role=role_name, permission_id=perm.id).first()
+            if role_perm:
+                role_perm.is_allowed = is_allowed
+            else:
+                role_perm = RolePermission(role=role_name, permission_id=perm.id, is_allowed=is_allowed)
+                db.session.add(role_perm)
+        
+        db.session.commit()
+        flash(f'Permissions for "{role_name}" updated!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.manage_permissions', selected_role=role_name))
+
+@bp.route('/roles/add', methods=['POST'])
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def add_role():
+    """Add a new custom role."""
+    name = request.form.get('name', '').strip().lower().replace(' ', '_')
+    description = request.form.get('description', '')
+    
+    if not name:
+        flash('Role name is required', 'danger')
+        return redirect(url_for('admin.manage_permissions'))
+    
+    if Role.query.filter_by(name=name).first():
+        flash('Role already exists', 'danger')
+        return redirect(url_for('admin.manage_permissions'))
+    
+    role = Role(name=name, description=description, is_system=False)
+    db.session.add(role)
+    db.session.commit()
+    
+    flash(f'Role "{name}" created!', 'success')
+    return redirect(url_for('admin.manage_permissions', selected_role=name))
+
+@bp.route('/roles/delete/<int:id>', methods=['POST'])
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def delete_role(id):
+    """Delete a custom role."""
+    role = Role.query.get_or_404(id)
+    
+    if role.is_system:
+        flash('Cannot delete system roles', 'danger')
+        return redirect(url_for('admin.manage_permissions'))
+    
+    # Check if any users have this role
+    users_with_role = User.query.filter_by(role=role.name).count()
+    if users_with_role > 0:
+        flash(f'Cannot delete: {users_with_role} user(s) have this role', 'danger')
+        return redirect(url_for('admin.manage_permissions', selected_role=role.name))
+    
+    # Delete role permissions
+    RolePermission.query.filter_by(role=role.name).delete()
+    db.session.delete(role)
+    db.session.commit()
+    
+    flash(f'Role "{role.name}" deleted!', 'success')
+    return redirect(url_for('admin.manage_permissions'))
+
+@bp.route('/permissions/add', methods=['POST'])
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def add_permission():
+    """Add a new permission."""
+    name = request.form.get('name', '').strip().lower().replace(' ', '_')
+    description = request.form.get('description', '')
+    category = request.form.get('category', 'general')
+    
+    if not name:
+        flash('Permission name is required', 'danger')
+        return redirect(url_for('admin.manage_permissions'))
+    
+    if Permission.query.filter_by(name=name).first():
+        flash('Permission already exists', 'danger')
+        return redirect(url_for('admin.manage_permissions'))
+    
+    perm = Permission(name=name, description=description, category=category)
+    db.session.add(perm)
+    db.session.commit()
+    
+    flash(f'Permission "{name}" added!', 'success')
+    return redirect(url_for('admin.manage_permissions'))
+
+@bp.route('/permissions/delete/<int:id>', methods=['POST'])
+@login_required
+@role_required(UserRole.SUPER_ADMIN)
+def delete_permission(id):
+    """Delete a permission."""
+    perm = Permission.query.get_or_404(id)
+    RolePermission.query.filter_by(permission_id=id).delete()
+    db.session.delete(perm)
+    db.session.commit()
+    
+    flash(f'Permission "{perm.name}" deleted!', 'success')
+    return redirect(url_for('admin.manage_permissions'))
+

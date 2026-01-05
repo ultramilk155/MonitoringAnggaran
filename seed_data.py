@@ -1,15 +1,88 @@
 from app import create_app
-from app.models import db, BudgetLine
+from app.models import db, BudgetLine, User, UserRole, Permission, RolePermission
+from werkzeug.security import generate_password_hash
 
 app = create_app()
 
+# Default permissions to seed
+DEFAULT_PERMISSIONS = [
+    # User Management
+    {'name': 'manage_users', 'description': 'Create, edit, delete users', 'category': 'users'},
+    
+    # Budget Management
+    {'name': 'upload_prk', 'description': 'Upload PRK Excel files', 'category': 'budget'},
+    {'name': 'delete_budget_line', 'description': 'Delete budget lines', 'category': 'budget'},
+    {'name': 'reorder_budget_lines', 'description': 'Reorder budget lines', 'category': 'budget'},
+    
+    # Job Management
+    {'name': 'add_job', 'description': 'Add new jobs', 'category': 'jobs'},
+    {'name': 'edit_job', 'description': 'Edit existing jobs', 'category': 'jobs'},
+    {'name': 'delete_job', 'description': 'Delete jobs', 'category': 'jobs'},
+    {'name': 'add_progress', 'description': 'Add progress logs', 'category': 'jobs'},
+    {'name': 'edit_progress', 'description': 'Edit progress logs', 'category': 'jobs'},
+    {'name': 'update_job_status', 'description': 'Update job status', 'category': 'jobs'},
+    
+    # Reports
+    {'name': 'export_data', 'description': 'Export data to Excel', 'category': 'reports'},
+    {'name': 'view_monitoring', 'description': 'View monitoring dashboard', 'category': 'reports'},
+]
+
+# Default role permissions (what each role can do)
+DEFAULT_ROLE_PERMISSIONS = {
+    UserRole.ADMIN: [
+        'add_job', 'edit_job', 'delete_job', 
+        'add_progress', 'edit_progress', 'update_job_status',
+        'reorder_budget_lines', 'export_data', 'view_monitoring'
+    ],
+    UserRole.VIEWER: [
+        'view_monitoring', 'export_data'
+    ]
+}
+
 def seed():
     with app.app_context():
+        # Create all tables
         db.create_all()
         
-        # Check if data exists
+        # 1. Create Users
+        print("Seeding Users...")
+        if not User.query.first():
+            users = [
+                User(username='superadmin', password_hash=generate_password_hash('password123'), role=UserRole.SUPER_ADMIN),
+                User(username='admin', password_hash=generate_password_hash('password123'), role=UserRole.ADMIN),
+                User(username='viewer', password_hash=generate_password_hash('password123'), role=UserRole.VIEWER)
+            ]
+            db.session.add_all(users)
+            db.session.commit()
+            print("Users created: superadmin, admin, viewer (password: password123)")
+        else:
+            print("Users already exist.")
+        
+        # 2. Create Permissions
+        print("Seeding Permissions...")
+        if not Permission.query.first():
+            for perm_data in DEFAULT_PERMISSIONS:
+                perm = Permission(**perm_data)
+                db.session.add(perm)
+            db.session.commit()
+            print(f"Created {len(DEFAULT_PERMISSIONS)} permissions.")
+            
+            # Create RolePermissions
+            for role, allowed_perms in DEFAULT_ROLE_PERMISSIONS.items():
+                for perm_name in allowed_perms:
+                    perm = Permission.query.filter_by(name=perm_name).first()
+                    if perm:
+                        rp = RolePermission(role=role, permission_id=perm.id, is_allowed=True)
+                        db.session.add(rp)
+            db.session.commit()
+            print("Role permissions configured.")
+        else:
+            print("Permissions already exist.")
+
+        # 3. Create Budget Lines
+        print("Seeding Budget Lines...")
         if BudgetLine.query.first():
-            print("Database already seeded.")
+            print("Budget data already seeded.")
             return
 
         data = [
@@ -57,3 +130,4 @@ def seed():
 
 if __name__ == "__main__":
     seed()
+

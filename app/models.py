@@ -99,8 +99,87 @@ class JobProgress(db.Model):
             'progress_percent': self.progress_percent
         }
 
+class UserRole:
+    """Default system roles (can't be deleted)."""
+    SUPER_ADMIN = 'super_admin'
+    ADMIN = 'admin'
+    VIEWER = 'viewer'
+    
+    @classmethod
+    def default_roles(cls):
+        return [cls.SUPER_ADMIN, cls.ADMIN, cls.VIEWER]
+    
+    @classmethod
+    def all_roles(cls):
+        """Get all roles from database + defaults."""
+        from app.models import Role
+        db_roles = Role.query.all()
+        role_names = [r.name for r in db_roles]
+        # Ensure defaults exist
+        for default in cls.default_roles():
+            if default not in role_names:
+                role_names.append(default)
+        return role_names
+
+class Role(db.Model):
+    """Dynamic roles that can be created by admin."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(200))
+    is_system = db.Column(db.Boolean, default=False)  # True for default roles
+    
+    def permission_count(self):
+        """Count permissions for this role."""
+        if self.name == UserRole.SUPER_ADMIN:
+            return Permission.query.count()  # Super admin has all
+        return RolePermission.query.filter_by(role=self.name, is_allowed=True).count()
+    
+    def __repr__(self):
+        return f'<Role {self.name}>'
+
+class Permission(db.Model):
+    """Defines available permissions in the system."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., 'manage_users'
+    description = db.Column(db.String(200))  # Human-readable description
+    category = db.Column(db.String(50), default='general')  # For grouping in UI
+    
+    def __repr__(self):
+        return f'<Permission {self.name}>'
+
+class RolePermission(db.Model):
+    """Maps roles to permissions."""
+    id = db.Column(db.Integer, primary_key=True)
+    role = db.Column(db.String(20), nullable=False)  # 'super_admin', 'admin', 'viewer'
+    permission_id = db.Column(db.Integer, db.ForeignKey('permission.id'), nullable=False)
+    is_allowed = db.Column(db.Boolean, default=True)
+    
+    # Relationship
+    permission = db.relationship('Permission', backref='role_permissions')
+    
+    # Unique constraint: one entry per role-permission pair
+    __table_args__ = (db.UniqueConstraint('role', 'permission_id', name='unique_role_permission'),)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='viewer') # 'admin' or 'viewer'
+    role = db.Column(db.String(50), nullable=False, default=UserRole.VIEWER)
+    
+    def has_permission(self, permission_name):
+        """Check if user has a specific permission based on their role."""
+        # Super admin always has all permissions
+        if self.role == UserRole.SUPER_ADMIN:
+            return True
+            
+        # Check RolePermission table
+        permission = Permission.query.filter_by(name=permission_name).first()
+        if not permission:
+            return False
+            
+        role_perm = RolePermission.query.filter_by(
+            role=self.role, 
+            permission_id=permission.id
+        ).first()
+        
+        return role_perm.is_allowed if role_perm else False

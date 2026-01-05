@@ -56,7 +56,7 @@
             </a>
             {% endif %}
 
-            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+            {% if current_user.is_authenticated and current_user.has_permission('upload_prk') %}
             <button class="btn btn-success me-3" data-bs-toggle="modal" data-bs-target="#uploadPrkModal">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Import Excel
             </button>
@@ -84,14 +84,14 @@
                 <table class="table table-hover mb-0 align-middle table-sm" style="font-size: 0.9em;">
                     <thead>
                         <tr>
-                            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                            {% if current_user.is_authenticated and current_user.has_permission('delete_budget_line') %}
                             <th rowspan="2" class="text-center align-middle" style="width: 40px;">
                                 <input type="checkbox" id="selectAll" class="form-check-input"
                                     onclick="toggleSelectAll(this)" title="Pilih semua untuk dihapus">
                                 <div style="font-size: 0.6rem; margin-top: 2px;" class="text-danger">Hapus</div>
                             </th>
                             {% endif %}
-                            {% if current_user.role in ['admin', 'super_admin'] %}
+                            {% if current_user.has_permission('reorder_budget_lines') %}
                             <th rowspan="2" class="text-center align-middle" style="width: 30px;">
                                 <i class="bi bi-arrows-move"></i>
                             </th>
@@ -117,13 +117,13 @@
                     <tbody id="budgetTableBody">
                         {% for item in items %}
                         <tr data-id="{{ item.id }}">
-                            {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                            {% if current_user.is_authenticated and current_user.has_permission('delete_budget_line') %}
                             <td class="text-center">
                                 <input type="checkbox" name="ids" value="{{ item.id }}"
                                     class="form-check-input item-checkbox" onclick="updateBulkState()">
                             </td>
                             {% endif %}
-                            {% if current_user.role in ['admin', 'super_admin'] %}
+                            {% if current_user.has_permission('reorder_budget_lines') %}
                             <td class="text-center align-middle handle" style="cursor: grab;">
                                 <i class="bi bi-grip-vertical text-muted"></i>
                             </td>
@@ -160,7 +160,7 @@
                     </tbody>
                     <tfoot class="fw-bold" style="border-top: 2px solid var(--border-color);">
                         <tr>
-                            <td colspan="{% if current_user.role == 'super_admin' %}5{% else %}4{% endif %}"
+                            <td colspan="{% if current_user.has_permission('delete_budget_line') %}5{% else %}4{% endif %}"
                                 class="text-end">Grand Total</td>
                             <td class="text-end">Rp {{ total_pagu_material|ribuan }}</td>
                             <td class="text-end">Rp {{ total_pagu_jasa|ribuan }}</td>
@@ -181,7 +181,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // User Role Config
-    const isAuthorized = "{{ 'true' if current_user.role in ['admin', 'super_admin'] else 'false' }}" === "true";
+    const isAuthorized = "{{ 'true' if current_user.has_permission('reorder_budget_lines') else 'false' }}" === "true";
 
     // Drag and Drop Logic
     document.addEventListener('DOMContentLoaded', function () {

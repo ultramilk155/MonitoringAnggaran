@@ -1,1 +1,22 @@
-env
+# Environments
+.env
+env/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Flask
+instance/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

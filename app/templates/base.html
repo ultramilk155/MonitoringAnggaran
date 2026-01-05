@@ -37,9 +37,15 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.monitoring') }}">Monitoring Status</a>
                     </li>
-                    {% if current_user.role == 'super_admin' %}
+                    {% if current_user.has_permission('manage_users') %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin.list_users') }}">Manage Users</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.role == UserRole.SUPER_ADMIN %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.manage_permissions') }}">Permissions</a>
                     </li>
                     {% endif %}
                     <li class="nav-item dropdown">

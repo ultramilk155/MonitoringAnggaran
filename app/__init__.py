@@ -26,7 +26,8 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
 
     from app.routes.admin import bp as admin_bp
-    app.register_blueprint(admin_bp)
+    from app.routes.admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
     
     # Template Filter
     @app.template_filter('ribuan')

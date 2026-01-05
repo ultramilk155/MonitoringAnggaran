@@ -207,3 +207,13 @@ def reorder_budget_lines():
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@bp.route('/check-ellipse')
+@login_required
+def check_ellipse():
+    from app.services.ellipse import ellipse_service
+    success, message = ellipse_service.check_connection()
+    return jsonify({
+        'status': 'connected' if success else 'disconnected',
+        'message': message
+    })

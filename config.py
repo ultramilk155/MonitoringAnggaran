@@ -13,3 +13,10 @@ class Config:
         
     SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///' + os.path.join(BASE_DIR, 'instance', 'budget.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Oracle / Ellipse Config
+    ORACLE_HOST = os.environ.get('ORACLE_HOST')
+    ORACLE_PORT = os.environ.get('ORACLE_PORT')
+    ORACLE_SID = os.environ.get('ORACLE_SID')
+    ORACLE_USER = os.environ.get('ORACLE_USER')
+    ORACLE_PASS = os.environ.get('ORACLE_PASS')

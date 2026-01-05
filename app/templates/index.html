@@ -2,7 +2,13 @@
 
 
 
+
 {% block content %}
+<div class="d-flex justify-content-end mb-2">
+    <span id="ellipseStatus" class="badge bg-secondary">
+        <i class="bi bi-database me-1"></i> Ellipse: Checking...
+    </span>
+</div>
 <div class="row mb-4">
     <div class="col-md-6 mb-3 mb-md-0">
         <div class="card shadow-sm border-left-primary h-100 py-2">
@@ -27,6 +33,22 @@
                             Total Realisasi (Ellipse)</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ total_all_ellipse|ribuan }}</div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">System Logs (Live)</h6>
+            </div>
+            <div class="card-body bg-light">
+                <div id="systemLog" style="height: 100px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;"
+                    class="text-secondary">
+                    <div>[Init] Dashboard loaded...</div>
                 </div>
             </div>
         </div>
@@ -368,5 +390,46 @@
             bulkActions.classList.add('d-none');
         }
     }
+</script>
+
+<script>
+    // Check Ellipse Connection Status
+    function logMessage(msg, type = 'info') {
+        const logDiv = document.getElementById('systemLog');
+        if (!logDiv) return;
+
+        const time = new Date().toLocaleTimeString();
+        const color = type === 'success' ? 'text-success' : (type === 'error' ? 'text-danger' : 'text-secondary');
+        const entry = document.createElement('div');
+        entry.className = color;
+        entry.innerText = `[${time}] ${msg}`;
+        logDiv.appendChild(entry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    logMessage('Checking connection to Ellipse Database (192.168.3.205)...');
+
+    fetch('/admin/check-ellipse')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('ellipseStatus');
+            if (badge) {
+                if (data.status === 'connected') {
+                    badge.className = 'badge bg-success';
+                    badge.innerHTML = '<i class="bi bi-database-check me-1"></i> Ellipse: Connected';
+                    badge.title = data.message;
+                    logMessage('SUCCESS: ' + data.message, 'success');
+                } else {
+                    badge.className = 'badge bg-danger';
+                    badge.innerHTML = '<i class="bi bi-database-x me-1"></i> Ellipse: Disconnected';
+                    badge.title = data.message;
+                    logMessage('FAILED: ' + data.message, 'error');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Failed to check ellipse status', err);
+            logMessage('ERROR: Network/API failure to check status.', 'error');
+        });
 </script>
 {% endblock %}

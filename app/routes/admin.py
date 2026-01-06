@@ -314,37 +314,51 @@ def delete_role(id):
     flash(f'Role "{role.name}" deleted!', 'success')
     return redirect(url_for('admin.dashboard', tab='permissions'))
 
-@bp.route('/sync_realization', methods=['POST'])
-@login_required
-@permission_required('upload_prk') # Using same permission as upload
-def sync_realization():
+# Global variable for throttling
+last_sync_timestamp = None
+
+def _perform_sync(force=False):
+    global last_sync_timestamp
+    
+    # Throttle check (5 minutes)
+    if not force and last_sync_timestamp:
+        elapsed = (datetime.datetime.now() - last_sync_timestamp).total_seconds()
+        if elapsed < 300: # 5 minutes
+            return {'status': 'skipped', 'message': f'Data is fresh (synced {int(elapsed)}s ago)'}
+
     from app.services.ellipse import ellipse_service
     
     # 1. Check connection first
     connected, msg = ellipse_service.check_connection()
     if not connected:
-        return jsonify({'status': 'error', 'message': f'Ellipse Not Connected: {msg}'}), 500
+        return {'status': 'error', 'message': f'Ellipse Not Connected: {msg}'}
         
     try:
-        # 2. Get all BudgetLines for current context (or all)
-        # Assuming we want to sync for the active year in session or all relevant
+        # 2. Get all BudgetLines for target year
+        # Determine the year to sync
         current_year = datetime.datetime.now().year
-        selected_year = session.get('year', current_year)
         
-        budget_lines = BudgetLine.query.filter_by(tahun=selected_year).all()
+        # Check if a specific year is in session (from dashboard filter)
+        session_year = session.get('year')
+        
+        # Use session year if available, otherwise current year
+        target_year = int(session_year) if session_year else current_year
+        
+
+            
+        budget_lines = BudgetLine.query.filter_by(tahun=target_year).all()
         if not budget_lines:
-             return jsonify({'status': 'warning', 'message': 'No data to sync for this year'}), 404
+             return {'status': 'warning', 'message': 'No data to sync for this year'}
              
-        # Collection of PRK numbers (Project IDs)
-        # Using no_prk as the Project Identifier based on user context
+        # Collection of PRK numbers
         prk_map = {bl.no_prk: bl for bl in budget_lines if bl.no_prk}
         prk_codes = list(prk_map.keys())
         
         # 3. Fetch data
-        realization_data = ellipse_service.fetch_prk_realization(prk_codes)
-        
+        # 3. Fetch data
+        realization_data = ellipse_service.fetch_prk_realization(prk_codes, year=target_year)
         if realization_data is None:
-             return jsonify({'status': 'error', 'message': 'Failed to fetch data from Ellipse'}), 500
+             return {'status': 'error', 'message': 'Failed to fetch data from Ellipse'}
              
         # 4. Update Database
         updated_count = 0
@@ -359,16 +373,36 @@ def sync_realization():
                 total_realization += amount
                 
         db.session.commit()
+        last_sync_timestamp = datetime.datetime.now()
         
-        return jsonify({
+        return {
             'status': 'success', 
             'message': f'Synced {updated_count} items. Total Realization: {total_realization:,.0f}',
             'updated_count': updated_count
-        })
+        }
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return {'status': 'error', 'message': str(e)}
+
+@bp.route('/sync_realization', methods=['POST'])
+@login_required
+@permission_required('upload_prk')
+def sync_realization():
+    """Manual sync (forces update)"""
+    result = _perform_sync(force=True)
+    status_code = 200 if result['status'] in ['success', 'skipped'] else 500
+    return jsonify(result), status_code
+
+@bp.route('/auto_sync_realization', methods=['POST'])
+@login_required
+def auto_sync_realization():
+    """Auto sync (throttled)"""
+    # Allow any logged-in user to trigger auto-sync check, 
+    # but only if they have viewing rights (which is @login_required default)
+    result = _perform_sync(force=False)
+    status_code = 200 if result['status'] in ['success', 'skipped'] else 500
+    return jsonify(result), status_code
 
 @bp.route('/permissions/add', methods=['POST'])
 @login_required

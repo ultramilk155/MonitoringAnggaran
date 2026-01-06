@@ -83,7 +83,7 @@ def index():
         chart_labels.append(f"Kode {code}")
         chart_pagu.append(total_pagu)
         chart_ellipse.append(total_ellipse)
-        chart_sisa.append(sisa)
+        chart_sisa.append(max(0, sisa))
         chart_percent.append(round(percent, 2))
 
     total_pagu_material = sum((item.pagu_material or 0) for item in items)
@@ -409,74 +409,78 @@ def export_excel():
     current_year = datetime.datetime.now().year
     selected_year = session.get('year', current_year)
 
-    # Query all Budget Lines for selected year
-    budget_lines = BudgetLine.query.filter_by(tahun=selected_year).all()
-    
-    data = []
-    
-    for bl in budget_lines:
-        base_info = {
-            'Kode Anggaran': bl.kode,
-            'No PRK': bl.no_prk,
-            'Deskripsi PRK': bl.deskripsi,
-            'Pagu Material': bl.pagu_material,
-            'Pagu Jasa': bl.pagu_jasa,
-            'Pagu Total': bl.pagu_total,
-            'Realisasi Ellipse': bl.ellipse_rp
-        }
+    try:
+        # Query all Budget Lines for selected year
+        budget_lines = BudgetLine.query.filter_by(tahun=selected_year).all()
         
-        if not bl.jobs:
-            row = base_info.copy()
-            row.update({
-                'Nama Pekerjaan': '-',
-                'Status': '-',
-                'PIC': '-',
-                'Tanggal TOR': '-',
-                'Tanggal Dibutuhkan': '-',
-                'No VKA': '-',
-                'COA': '-',
-                'RAB (Seb. PPN)': 0,
-                'Terkontrak': 0,
-                'Terbayar': 0,
-                'Jenis Pengadaan': '-',
-                'Est. Sisa': 0
-            })
-            data.append(row)
-        else:
-            for job in bl.jobs:
+        data = []
+        
+        for bl in budget_lines:
+            base_info = {
+                'Kode Anggaran': bl.kode,
+                'No PRK': bl.no_prk,
+                'Deskripsi PRK': bl.deskripsi,
+                'Pagu Material': bl.pagu_material,
+                'Pagu Jasa': bl.pagu_jasa,
+                'Pagu Total': bl.pagu_total,
+                'Realisasi Ellipse': bl.ellipse_rp
+            }
+            
+            if not bl.jobs:
                 row = base_info.copy()
                 row.update({
-                    'Nama Pekerjaan': job.nama_pekerjaan,
-                    'Status': job.status or 'User',
-                    'PIC': job.pic or '-',
-                    'Tanggal TOR': job.tanggal_tor,
-                    'Tanggal Dibutuhkan': job.tanggal_dibutuhkan,
-                    'No VKA': job.no_vka,
-                    'COA': job.coa,
-                    'RAB (Seb. PPN)': job.rab_sebelum_ppn,
-                    'Terkontrak': job.terkontrak_rp,
-                    'Terbayar': job.terbayar_rp,
-                    'Jenis Pengadaan': job.jenis_pengadaan,
-                    'Est. Sisa': job.est_sisa
+                    'Nama Pekerjaan': '-',
+                    'Status': '-',
+                    'PIC': '-',
+                    'Tanggal TOR': '-',
+                    'Tanggal Dibutuhkan': '-',
+                    'No VKA': '-',
+                    'COA': '-',
+                    'RAB (Seb. PPN)': 0,
+                    'Terkontrak': 0,
+                    'Terbayar': 0,
+                    'Jenis Pengadaan': '-',
+                    'Est. Sisa': 0
                 })
                 data.append(row)
-    
-    df = pd.DataFrame(data)
-    
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Data Monitoring')
-    
-    output.seek(0)
-    
-    filename = f"Data_Monitoring_Anggaran_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    
-    return send_file(
-        output,
-        download_name=filename,
-        as_attachment=True,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+            else:
+                for job in bl.jobs:
+                    row = base_info.copy()
+                    row.update({
+                        'Nama Pekerjaan': job.nama_pekerjaan,
+                        'Status': job.status or 'User',
+                        'PIC': job.pic or '-',
+                        'Tanggal TOR': job.tanggal_tor,
+                        'Tanggal Dibutuhkan': job.tanggal_dibutuhkan,
+                        'No VKA': job.no_vka,
+                        'COA': job.coa,
+                        'RAB (Seb. PPN)': job.rab_sebelum_ppn,
+                        'Terkontrak': job.terkontrak_rp,
+                        'Terbayar': job.terbayar_rp,
+                        'Jenis Pengadaan': job.jenis_pengadaan,
+                        'Est. Sisa': job.est_sisa
+                    })
+                    data.append(row)
+        
+        df = pd.DataFrame(data)
+        
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Data Monitoring')
+        
+        output.seek(0)
+        
+        filename = f"Data_Monitoring_Anggaran_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            output,
+            download_name=filename,
+            as_attachment=True,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        print(f"Export Error: {e}")
+        return f"Error exporting data: {str(e)}", 500
 
 @bp.route('/get_job_logs/<int:job_id>')
 @login_required

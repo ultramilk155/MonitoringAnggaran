@@ -276,6 +276,27 @@
                 }
             });
         }
+
+        // Auto Sync Realization (Throttled)
+        console.log("Checking for auto-sync...");
+        fetch('{{ url_for("admin.auto_sync_realization") }}', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' && data.updated_count > 0) {
+                    console.log("Data updated via Auto-Sync. Reloading...");
+                    logMessage("Data updated! Reloading...", 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else if (data.status === 'skipped') {
+                    console.log("Auto-Sync skipped: " + data.message);
+                    logMessage("Data Realisasi: Up-to-date", 'info');
+                } else if (data.status === 'error') {
+                    console.error("Auto-Sync Failed: " + data.message);
+                    logMessage("Auto-Sync Error: " + data.message, 'error');
+                }
+            })
+            .catch(err => {
+                console.error("Auto Sync Network Error", err);
+            });
     });
 
     // Parse data safely to avoid IDE errors

@@ -370,19 +370,13 @@
                             return label;
                         },
                         footer: function (tooltipItems) {
-                            let total = 0;
-                            let realisasi = 0;
+                            const index = tooltipItems[0].dataIndex;
+                            const pagu = chartPagu[index];
+                            const realisasi = chartEllipse[index];
 
-                            tooltipItems.forEach(function (tooltipItem) {
-                                total += tooltipItem.parsed.x;
-                                if (tooltipItem.datasetIndex === 0) { // Index 0 is Realisasi
-                                    realisasi = tooltipItem.parsed.x;
-                                }
-                            });
+                            let percent = (pagu > 0) ? (realisasi / pagu) * 100 : 0;
 
-                            let percent = (total > 0) ? (realisasi / total) * 100 : 0;
-
-                            return 'Total Pagu: Rp ' + (total / 1000).toLocaleString('id-ID') + '\n' +
+                            return 'Total Pagu: Rp ' + (pagu / 1000).toLocaleString('id-ID') + '\n' +
                                 'Realisasi: ' + percent.toFixed(2).replace('.', ',') + '%';
                         }
                     }

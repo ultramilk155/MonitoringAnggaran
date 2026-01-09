@@ -355,31 +355,15 @@ def _perform_sync(force=False):
         prk_codes = list(prk_map.keys())
         
         # 3. Fetch data
-        # 3. Fetch data
         realization_data = ellipse_service.fetch_prk_realization(prk_codes, year=target_year)
         if realization_data is None:
              return {'status': 'error', 'message': 'Failed to fetch data from Ellipse'}
              
-        # 4. Update Database
-        updated_count = 0
-        total_realization = 0
+        # 4. Use Smart Sync Service
+        from app.services.smart_sync import smart_sync_service
+        sync_result = smart_sync_service.sync_year(target_year, realization_data)
         
-        for code, amount in realization_data.items():
-            if code in prk_map:
-                bl = prk_map[code]
-                if bl.ellipse_rp != amount:
-                    bl.ellipse_rp = amount
-                    updated_count += 1
-                total_realization += amount
-                
-        db.session.commit()
-        last_sync_timestamp = datetime.datetime.now()
-        
-        return {
-            'status': 'success', 
-            'message': f'Synced {updated_count} items. Total Realization: {total_realization:,.0f}',
-            'updated_count': updated_count
-        }
+        return sync_result
         
     except Exception as e:
         db.session.rollback()

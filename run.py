@@ -27,4 +27,4 @@ if __name__ == '__main__':
         # Note: In production with migrations, use 'flask db upgrade' instead of db.create_all()
         db.create_all()
         create_default_users()
-    app.run(debug=True, port=9000)
+    app.run(debug=True, port=9010)
